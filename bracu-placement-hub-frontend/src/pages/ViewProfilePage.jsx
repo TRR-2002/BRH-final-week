@@ -1,3 +1,4 @@
+// export default ViewProfilePage;
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -80,7 +81,7 @@ function ViewProfilePage() {
           <h1 className="text-3xl font-bold">Your Profile</h1>
           <button
             onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-semibold transition"
           >
             Logout
           </button>
@@ -164,17 +165,86 @@ function ViewProfilePage() {
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Work Experience Section */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold mb-4">Work Experience</h2>
+          {user.workExperience && user.workExperience.length > 0 ? (
+            <div className="space-y-4">
+              {user.workExperience.map((exp, index) => (
+                <div
+                  key={index}
+                  className="p-4 bg-purple-50 rounded-lg border border-purple-200"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <p className="text-lg font-semibold text-gray-800">
+                        {exp.position}
+                      </p>
+                      <p className="text-gray-700 font-medium">{exp.company}</p>
+                    </div>
+                    <span className="text-sm text-purple-700 bg-purple-100 px-3 py-1 rounded-full whitespace-nowrap ml-4">
+                      {exp.duration}
+                    </span>
+                  </div>
+                  {exp.description && (
+                    <p className="text-gray-600 mt-2 text-sm leading-relaxed">
+                      {exp.description}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-gray-500 italic">
+                No work experience added yet.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Education Section */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold mb-4">Education</h2>
+          {user.education && user.education.length > 0 ? (
+            <div className="space-y-4">
+              {user.education.map((edu, index) => (
+                <div
+                  key={index}
+                  className="p-4 bg-green-50 rounded-lg border border-green-200"
+                >
+                  <p className="text-lg font-semibold text-gray-800">
+                    {edu.degree}
+                  </p>
+                  <p className="text-gray-700 font-medium mt-1">
+                    {edu.institution}
+                  </p>
+                  <p className="text-sm text-green-700 bg-green-100 px-3 py-1 rounded-full inline-block mt-2">
+                    {edu.year}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-gray-500 italic">
+                No education history added yet.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons - Matching the screenshot */}
         <div className="flex gap-4 mt-8">
           <button
             onClick={() => navigate("/profile/edit")}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg transition"
           >
             Edit Profile
           </button>
           <button
             onClick={() => navigate("/")}
-            className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-md hover: bg-gray-700"
+            className="flex-1 px-6 py-3 bg-gray-700 text-white rounded-md hover:bg-gray-800 font-semibold text-lg transition"
           >
             Back to Home
           </button>

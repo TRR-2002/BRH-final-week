@@ -15,8 +15,21 @@ function CreateProfilePage() {
   const [interestInput, setInterestInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [workExperience, setWorkExperience] = useState([]);
+  const [education, setEducation] = useState([]);
+  const [newExperience, setNewExperience] = useState({
+    company: "",
+    position: "",
+    duration: "",
+    description: "",
+  });
+  const [newEducation, setNewEducation] = useState({
+    institution: "",
+    degree: "",
+    year: "",
+  });
 
-  // Route protection:  Check if user already has a profile
+  // Route protection: Check if user already has a profile
   useEffect(() => {
     const checkProfileStatus = async () => {
       try {
@@ -46,12 +59,12 @@ function CreateProfilePage() {
 
         // If user already has a profile, redirect them to view profile
         if (data.hasProfile) {
-          console.log("User already has a profile.  Redirecting.. .");
+          console.log("User already has a profile. Redirecting...");
           navigate(`/profile/view/${data.userId}`);
         }
       } catch (err) {
         console.error("Error checking profile status:", err);
-        setError("Error checking profile status.  Please try again.");
+        setError("Error checking profile status. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -107,12 +120,64 @@ function CreateProfilePage() {
     }));
   };
 
+  // --- Handlers for Work Experience ---
+  const handleExperienceInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewExperience((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddExperience = () => {
+    if (
+      !newExperience.company ||
+      !newExperience.position ||
+      !newExperience.duration
+    ) {
+      setError("Please fill in company, position, and duration");
+      return;
+    }
+    setWorkExperience((prev) => [...prev, { ...newExperience }]);
+    setNewExperience({
+      company: "",
+      position: "",
+      duration: "",
+      description: "",
+    });
+    setError("");
+  };
+
+  const handleRemoveExperience = (index) => {
+    setWorkExperience((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // --- Handlers for Education ---
+  const handleEducationInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewEducation((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddEducation = () => {
+    if (
+      !newEducation.institution ||
+      !newEducation.degree ||
+      !newEducation.year
+    ) {
+      setError("Please fill in all education fields");
+      return;
+    }
+    setEducation((prev) => [...prev, { ...newEducation }]);
+    setNewEducation({ institution: "", degree: "", year: "" });
+    setError("");
+  };
+
+  const handleRemoveEducation = (index) => {
+    setEducation((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setIsSubmitting(true);
 
-    // Validation
     if (!formData.department || !formData.cgpa) {
       setError("Please fill in all required fields.");
       setIsSubmitting(false);
@@ -135,6 +200,13 @@ function CreateProfilePage() {
         return;
       }
 
+      // Combine all profile data including the new arrays
+      const profileData = {
+        ...formData,
+        workExperience,
+        education,
+      };
+
       const response = await fetch(
         `http://localhost:1350/api/profile/${userId}`,
         {
@@ -143,7 +215,7 @@ function CreateProfilePage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(profileData),
         }
       );
 
@@ -223,8 +295,8 @@ function CreateProfilePage() {
               name="cgpa"
               value={formData.cgpa}
               onChange={handleInputChange}
-              placeholder="e.g., 3.8"
-              step="0.1"
+              placeholder="e.g., 3.95"
+              step="0.01"
               min="0"
               max="4"
               className="w-full p-2 border border-gray-300 rounded-md"
@@ -269,7 +341,7 @@ function CreateProfilePage() {
                   <button
                     type="button"
                     onClick={() => handleRemoveSkill(skill)}
-                    className="text-red-600 hover: text-red-800"
+                    className="text-red-600 hover:text-red-800"
                   >
                     ×
                   </button>
@@ -322,6 +394,177 @@ function CreateProfilePage() {
                 </span>
               ))}
             </div>
+          </div>
+
+          {/* Work Experience Section */}
+          <div className="mb-6">
+            <label className="block text-gray-700 font-bold mb-2">
+              Work Experience (Optional)
+            </label>
+
+            {/* Form to Add a New Experience */}
+            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200 mb-4">
+              <h3 className="font-semibold mb-3 text-purple-800">
+                Add Work Experience
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <input
+                  type="text"
+                  name="company"
+                  value={newExperience.company}
+                  onChange={handleExperienceInputChange}
+                  placeholder="Company (e.g., Google, Microsoft)"
+                  className="p-2 border border-gray-300 rounded-md"
+                />
+                <input
+                  type="text"
+                  name="position"
+                  value={newExperience.position}
+                  onChange={handleExperienceInputChange}
+                  placeholder="Position (e.g., Software Engineer Intern)"
+                  className="p-2 border border-gray-300 rounded-md"
+                />
+                <input
+                  type="text"
+                  name="duration"
+                  value={newExperience.duration}
+                  onChange={handleExperienceInputChange}
+                  placeholder="Duration (e.g., Jun 2023 - Aug 2023)"
+                  className="p-2 border border-gray-300 rounded-md md:col-span-2"
+                />
+              </div>
+              <textarea
+                name="description"
+                value={newExperience.description}
+                onChange={handleExperienceInputChange}
+                placeholder="Description (optional) - What did you do? Technologies used?"
+                className="w-full p-2 border border-gray-300 rounded-md mb-3"
+                rows="2"
+              />
+              <button
+                type="button"
+                onClick={handleAddExperience}
+                className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+              >
+                + Add Experience
+              </button>
+            </div>
+
+            {/* Display List of Added Experiences */}
+            {workExperience.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600 mb-2">
+                  Added experiences ({workExperience.length}):
+                </p>
+                {workExperience.map((exp, index) => (
+                  <div
+                    key={index}
+                    className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex justify-between items-start"
+                  >
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-800">
+                        {exp.position}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {exp.company} • {exp.duration}
+                      </p>
+                      {exp.description && (
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                          {exp.description}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveExperience(index)}
+                      className="ml-3 text-red-600 hover:text-red-800 font-bold text-xl"
+                      title="Remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Education Section */}
+          <div className="mb-6">
+            <label className="block text-gray-700 font-bold mb-2">
+              Education (Optional)
+            </label>
+
+            {/* Form to Add New Education */}
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200 mb-4">
+              <h3 className="font-semibold mb-3 text-green-800">
+                Add Education
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                <input
+                  type="text"
+                  name="institution"
+                  value={newEducation.institution}
+                  onChange={handleEducationInputChange}
+                  placeholder="Institution (e.g., BRAC University)"
+                  className="p-2 border border-gray-300 rounded-md"
+                />
+                <input
+                  type="text"
+                  name="degree"
+                  value={newEducation.degree}
+                  onChange={handleEducationInputChange}
+                  placeholder="Degree (e.g., B.Sc. in CSE)"
+                  className="p-2 border border-gray-300 rounded-md"
+                />
+                <input
+                  type="text"
+                  name="year"
+                  value={newEducation.year}
+                  onChange={handleEducationInputChange}
+                  placeholder="Year (e.g., 2020-2024)"
+                  className="p-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleAddEducation}
+                className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                + Add Education
+              </button>
+            </div>
+
+            {/* Display List of Added Education */}
+            {education.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600 mb-2">
+                  Added education ({education.length}):
+                </p>
+                {education.map((edu, index) => (
+                  <div
+                    key={index}
+                    className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex justify-between items-start"
+                  >
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-800">
+                        {edu.degree}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {edu.institution} • {edu.year}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEducation(index)}
+                      className="ml-3 text-red-600 hover:text-red-800 font-bold text-xl"
+                      title="Remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Submit Button */}

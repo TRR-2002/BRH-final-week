@@ -9,40 +9,25 @@ import "./index.css";
 import App from "./App.jsx";
 import CreateProfilePage from "./pages/CreateProfilePage.jsx";
 import ViewProfilePage from "./pages/ViewProfilePage.jsx";
-import EditProfileMenuPage from "./pages/EditProfileMenuPage.jsx";
-import EditGeneralInfoPage from "./pages/EditGeneralInfoPage.jsx";
-import EditWorkExperiencePage from "./pages/EditWorkExperiencePage.jsx";
-import EditEducationPage from "./pages/EditEducationPage.jsx";
-
+import EditProfilePage from "./pages/EditProfilePage.jsx";
 // Create the router configuration
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <App />, // Serves as our homepage/login page
+    element: <App />, // Your developer login page
   },
   {
     path: "/create-profile",
     element: <CreateProfilePage />,
   },
   {
-    path: "/profile/view/:userId", // Changed to be more specific
+    path: "/profile/view/:userId",
     element: <ViewProfilePage />,
   },
   {
+    // This is the updated route
     path: "/profile/edit",
-    element: <EditProfileMenuPage />,
-  },
-  {
-    path: "/profile/edit/general",
-    element: <EditGeneralInfoPage />,
-  },
-  {
-    path: "/profile/edit/work",
-    element: <EditWorkExperiencePage />,
-  },
-  {
-    path: "/profile/edit/education",
-    element: <EditEducationPage />,
+    element: <EditProfilePage />, // Points to our new all-in-one edit page
   },
 ]);
 
