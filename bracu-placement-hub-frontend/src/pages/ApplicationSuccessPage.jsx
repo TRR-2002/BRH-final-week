@@ -152,14 +152,6 @@ function ApplicationSuccessPage() {
             >
               Go to My Profile
             </button>
-            <button
-              onClick={() =>
-                navigate(`/dashboard/${localStorage.getItem("userId")}`)
-              }
-              className="w-full px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 font-bold text-lg transition"
-            >
-              View My Applications
-            </button>
           </div>
         </div>
 

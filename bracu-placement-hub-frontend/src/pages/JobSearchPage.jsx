@@ -66,14 +66,25 @@ function JobSearchPage() {
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            Job Discovery
-          </h1>
-          <p className="text-gray-600">
-            Find your next opportunity from available positions
-          </p>
+        {/* Header - FIXED: Button moved to opposite side */}
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-800 mb-2">
+              Job Discovery
+            </h1>
+            <p className="text-gray-600">
+              Find your next opportunity from available positions
+            </p>
+          </div>
+          {/* FIXED: Moved button to right side, opposite of title */}
+          <button
+            onClick={() =>
+              navigate(`/profile/view/${localStorage.getItem("userId")}`)
+            }
+            className="px-6 py-3 bg-gray-700 text-white rounded-md hover:bg-gray-800 font-semibold transition"
+          >
+            Back to Profile
+          </button>
         </div>
 
         {/* Search and Filter Section */}
@@ -137,7 +148,7 @@ function JobSearchPage() {
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {/* Action Buttons - FIXED: Removed non-functional button, kept only functional ones */}
             <div className="flex gap-3">
               <button
                 type="submit"
@@ -151,15 +162,6 @@ function JobSearchPage() {
                 className="px-6 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 font-semibold transition"
               >
                 Clear Filters
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(`/profile/view/${localStorage.getItem("userId")}`)
-                }
-                className="ml-auto px-6 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 font-semibold transition"
-              >
-                Back to Profile
               </button>
             </div>
           </form>
@@ -179,7 +181,7 @@ function JobSearchPage() {
           </p>
         </div>
 
-        {/* Job Listings */}
+        {/* Job Listings - FIXED: Removed onClick from card wrapper */}
         {jobs.length === 0 ? (
           <div className="bg-white p-12 rounded-lg shadow-md text-center">
             <p className="text-xl text-gray-600 mb-4">
@@ -195,8 +197,7 @@ function JobSearchPage() {
             {jobs.map((job) => (
               <div
                 key={job._id}
-                onClick={() => handleJobClick(job._id)}
-                className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-blue-500"
+                className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-blue-500"
               >
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
@@ -282,8 +283,12 @@ function JobSearchPage() {
                   </div>
                 )}
 
+                {/* FIXED: Only button is clickable, not the entire card */}
                 <div className="flex justify-end">
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold transition">
+                  <button
+                    onClick={() => handleJobClick(job._id)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold transition"
+                  >
                     View Details →
                   </button>
                 </div>
