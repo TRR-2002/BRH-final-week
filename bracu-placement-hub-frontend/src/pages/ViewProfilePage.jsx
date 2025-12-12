@@ -1,4 +1,3 @@
-// export default ViewProfilePage;
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -234,17 +233,23 @@ function ViewProfilePage() {
           )}
         </div>
 
-        {/* Action Buttons - Matching the screenshot */}
-        <div className="flex gap-4 mt-8">
+        {/* Action Buttons - Added Browse Jobs button */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
           <button
             onClick={() => navigate("/profile/edit")}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg transition"
+            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg transition"
           >
             Edit Profile
           </button>
           <button
+            onClick={() => navigate("/jobs")}
+            className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold text-lg transition"
+          >
+            Browse Jobs
+          </button>
+          <button
             onClick={() => navigate("/")}
-            className="flex-1 px-6 py-3 bg-gray-700 text-white rounded-md hover:bg-gray-800 font-semibold text-lg transition"
+            className="px-6 py-3 bg-gray-700 text-white rounded-md hover:bg-gray-800 font-semibold text-lg transition"
           >
             Back to Home
           </button>
