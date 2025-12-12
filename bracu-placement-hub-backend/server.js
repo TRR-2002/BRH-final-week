@@ -73,32 +73,37 @@ const UserSchema = new mongoose.Schema(
 );
 const User = mongoose.model("User", UserSchema);
 
-// UPDATED JOB SCHEMA - Added missing fields
+// UPDATED JOB SCHEMA - Added coordinates for map integration
 const JobSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
     company: { type: String, required: true },
     location: String,
+    // NEW: Geographic coordinates for map display
+    coordinates: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
     salaryMin: Number,
-    salaryMax: Number, // NEW
+    salaryMax: Number,
     description: String,
-    requiredSkills: [String], // NEW
+    requiredSkills: [String],
     type: {
       type: String,
       enum: ["Full-time", "Part-time", "Internship"],
       default: "Full-time",
-    }, // NEW
+    },
     status: {
       type: String,
       enum: ["Open", "Closed", "Filled"],
       default: "Open",
-    }, // NEW
+    },
   },
   { timestamps: true }
 );
 const Job = mongoose.model("Job", JobSchema);
 
-// UPDATED APPLICATION SCHEMA - Store profile snapshot
+// Application Schema with profile snapshot
 const ApplicationSchema = new mongoose.Schema(
   {
     job: { type: mongoose.Schema.Types.ObjectId, ref: "Job" },
@@ -108,7 +113,6 @@ const ApplicationSchema = new mongoose.Schema(
       enum: ["Pending", "Reviewed", "Rejected", "Accepted"],
       default: "Pending",
     },
-    // NEW: Profile snapshot at time of application
     profileSnapshot: {
       name: String,
       email: String,
@@ -291,16 +295,15 @@ app.put("/api/profile/:userId", auth, async (req, res) => {
 });
 
 // =================================================================
-// FEATURE 02: JOB DISCOVERY & APPLICATION APIs (ENHANCED)
+// FEATURE 02: JOB DISCOVERY & APPLICATION APIs
 // =================================================================
 
-// ENHANCED: Search jobs with keyword, location, and salary filters
+// Search jobs with filters
 app.get("/api/jobs/search", auth, async (req, res) => {
   try {
     const { keyword, location, minSalary, maxSalary } = req.query;
-    let query = { status: "Open" }; // Only show open jobs
+    let query = { status: "Open" };
 
-    // Keyword search (searches in title, company, and description)
     if (keyword) {
       query.$or = [
         { title: { $regex: keyword, $options: "i" } },
@@ -309,12 +312,10 @@ app.get("/api/jobs/search", auth, async (req, res) => {
       ];
     }
 
-    // Location filter
     if (location) {
       query.location = { $regex: location, $options: "i" };
     }
 
-    // Salary range filter
     if (minSalary) {
       query.salaryMin = { $gte: Number(minSalary) };
     }
@@ -337,7 +338,6 @@ app.get("/api/jobs/:jobId", auth, async (req, res) => {
       return res.status(404).json({ success: false, error: "Job not found" });
     }
 
-    // Check if user has already applied
     const existingApplication = await Application.findOne({
       user: req.user.id,
       job: req.params.jobId,
@@ -353,28 +353,23 @@ app.get("/api/jobs/:jobId", auth, async (req, res) => {
   }
 });
 
-// ENHANCED: Apply to job with profile snapshot
+// Apply to job with profile snapshot
 app.post("/api/jobs/apply", auth, async (req, res) => {
   try {
     const { jobId } = req.body;
 
-    // Validate job exists
     const job = await Job.findById(jobId);
     if (!job) {
       return res.status(404).json({ success: false, error: "Job not found" });
     }
 
-    // Check if job is still open
     if (job.status !== "Open") {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "This job is no longer accepting applications",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "This job is no longer accepting applications",
+      });
     }
 
-    // Check for duplicate application
     const existingApplication = await Application.findOne({
       user: req.user.id,
       job: jobId,
@@ -385,13 +380,11 @@ app.post("/api/jobs/apply", auth, async (req, res) => {
         .json({ success: false, error: "Already applied to this job" });
     }
 
-    // Get current user profile for snapshot
     const user = await User.findById(req.user.id).select("-password");
     if (!user) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    // Create profile snapshot
     const profileSnapshot = {
       name: user.name,
       email: user.email,
@@ -404,7 +397,6 @@ app.post("/api/jobs/apply", auth, async (req, res) => {
       education: user.education,
     };
 
-    // Create application with snapshot
     const newApplication = new Application({
       user: req.user.id,
       job: jobId,
@@ -413,7 +405,6 @@ app.post("/api/jobs/apply", auth, async (req, res) => {
     });
     await newApplication.save();
 
-    // Create notification for user
     const notification = new Notification({
       user: req.user.id,
       message: `Your application for "${job.title}" at ${job.company} has been submitted successfully.`,
@@ -443,7 +434,7 @@ app.get("/api/applications/my-applications", auth, async (req, res) => {
 });
 
 // =================================================================
-// FEATURE 01: DASHBOARD APIs
+// DASHBOARD APIs
 // =================================================================
 app.get("/api/dashboard/applications/:userId", auth, async (req, res) => {
   try {
@@ -614,4 +605,5 @@ app.listen(PORT, () => {
   console.log(`Student ID: 23101350`);
   console.log(`Authentication: UPGRADED AND RUNNING!`);
   console.log(`Job Discovery & Application: READY!`);
+  console.log(`External API (Maps): READY FOR INTEGRATION!`);
 });
