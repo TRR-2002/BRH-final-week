@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 function Navbar() {
@@ -6,7 +6,7 @@ function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // FIXED: Initialize user state from localStorage directly
-  const [user, setUser] = useState(() => {
+  const [user] = useState(() => {
     const token = localStorage.getItem("token");
     const userId = localStorage.getItem("userId");
     const userName = localStorage.getItem("userName");
@@ -22,40 +22,12 @@ function Navbar() {
     return null;
   });
 
-  // No useEffect needed for initial load since we use lazy initialization above
-  // useEffect only needed if you want to listen for storage changes
-  useEffect(() => {
-    // Optional: Listen for storage changes from other tabs
-    const handleStorageChange = () => {
-      const token = localStorage.getItem("token");
-      const userId = localStorage.getItem("userId");
-      const userName = localStorage.getItem("userName");
-      const userRole = localStorage.getItem("userRole");
-
-      if (token && userId) {
-        setUser({
-          userId: userId,
-          name: userName || "User",
-          role: userRole || "student",
-        });
-      } else {
-        setUser(null);
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
-
   const handleLogout = () => {
     // Clear all localStorage
     localStorage.removeItem("token");
     localStorage.removeItem("userId");
     localStorage.removeItem("userName");
     localStorage.removeItem("userRole");
-
-    // Clear user state
-    setUser(null);
 
     // Redirect to login
     navigate("/login");
@@ -79,24 +51,23 @@ function Navbar() {
           <div className="hidden md:flex items-center space-x-6">
             {user ? (
               <>
-                {/* Common Links for All Users */}
-                <Link
-                  to={`/profile/view/${user.userId}`}
-                  className="hover:text-blue-200 transition font-medium"
-                >
-                  My Profile
-                </Link>
-
-                <Link
-                  to={`/dashboard/${user.userId}`}
-                  className="hover:text-blue-200 transition font-medium"
-                >
-                  Dashboard
-                </Link>
-
-                {/* Student Links */}
+                {/* Student Links ONLY */}
                 {user.role === "student" && (
                   <>
+                    <Link
+                      to={`/profile/view/${user.userId}`}
+                      className="hover:text-blue-200 transition font-medium"
+                    >
+                      My Profile
+                    </Link>
+
+                    <Link
+                      to={`/dashboard/${user.userId}`}
+                      className="hover:text-blue-200 transition font-medium"
+                    >
+                      Dashboard
+                    </Link>
+
                     <Link
                       to="/jobs"
                       className="hover:text-blue-200 transition font-medium"
@@ -113,14 +84,14 @@ function Navbar() {
                   </>
                 )}
 
-                {/* Recruiter Links */}
+                {/* Recruiter Links ONLY */}
                 {user.role === "recruiter" && (
                   <>
                     <Link
                       to="/recruiter/dashboard"
                       className="hover:text-blue-200 transition font-medium"
                     >
-                      Recruiter Dashboard
+                      Dashboard
                     </Link>
 
                     <Link
@@ -132,7 +103,7 @@ function Navbar() {
                   </>
                 )}
 
-                {/* Admin Links */}
+                {/* Admin Links ONLY */}
                 {user.role === "admin" && (
                   <Link
                     to="/admin/dashboard"
@@ -211,24 +182,25 @@ function Navbar() {
           <div className="md:hidden pb-4 space-y-2">
             {user ? (
               <>
-                <Link
-                  to={`/profile/view/${user.userId}`}
-                  className="block px-4 py-2 hover:bg-blue-700 rounded-md transition"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  My Profile
-                </Link>
-
-                <Link
-                  to={`/dashboard/${user.userId}`}
-                  className="block px-4 py-2 hover:bg-blue-700 rounded-md transition"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Dashboard
-                </Link>
-
+                {/* Student Links - Mobile */}
                 {user.role === "student" && (
                   <>
+                    <Link
+                      to={`/profile/view/${user.userId}`}
+                      className="block px-4 py-2 hover:bg-blue-700 rounded-md transition"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      My Profile
+                    </Link>
+
+                    <Link
+                      to={`/dashboard/${user.userId}`}
+                      className="block px-4 py-2 hover:bg-blue-700 rounded-md transition"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+
                     <Link
                       to="/jobs"
                       className="block px-4 py-2 hover:bg-blue-700 rounded-md transition"
@@ -247,6 +219,7 @@ function Navbar() {
                   </>
                 )}
 
+                {/* Recruiter Links - Mobile */}
                 {user.role === "recruiter" && (
                   <>
                     <Link
@@ -254,7 +227,7 @@ function Navbar() {
                       className="block px-4 py-2 hover:bg-blue-700 rounded-md transition"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      Recruiter Dashboard
+                      Dashboard
                     </Link>
 
                     <Link
@@ -267,6 +240,7 @@ function Navbar() {
                   </>
                 )}
 
+                {/* Admin Links - Mobile */}
                 {user.role === "admin" && (
                   <Link
                     to="/admin/dashboard"
