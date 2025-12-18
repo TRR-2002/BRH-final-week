@@ -22,7 +22,6 @@ function ForumPage() {
     "Company Reviews",
   ];
 
-  // FIXED: Wrapped fetchPosts in useCallback
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
@@ -52,9 +51,8 @@ function ForumPage() {
     } finally {
       setLoading(false);
     }
-  }, [category, sortBy, searchQuery]); // FIXED: Added dependencies
+  }, [category, sortBy, searchQuery]);
 
-  // FIXED: Added fetchPosts to dependency array
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
@@ -103,22 +101,13 @@ function ForumPage() {
               Share experiences, ask questions, and connect with peers
             </p>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => navigate("/forum/create")}
-              className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold transition"
-            >
-              + New Post
-            </button>
-            <button
-              onClick={() =>
-                navigate(`/profile/view/${localStorage.getItem("userId")}`)
-              }
-              className="px-6 py-3 bg-gray-700 text-white rounded-md hover:bg-gray-800 font-semibold transition"
-            >
-              Back to Profile
-            </button>
-          </div>
+          <button
+            onClick={() => navigate("/forum/create")}
+            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold transition"
+          >
+            + New Post
+          </button>
+          {/* REMOVED: "Back to Profile" button - now in Navbar */}
         </div>
 
         {/* Filters and Search */}

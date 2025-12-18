@@ -1,6 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Navigate,
+} from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext.jsx";
 
 // Import CSS
@@ -10,7 +14,7 @@ import "./index.css";
 import MainLayout from "./layouts/MainLayout.jsx";
 
 // Import Page Components - Authentication
-import App from "./App.jsx"; // Dev Login
+import App from "./App.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
 
@@ -41,6 +45,11 @@ import ForumPostDetailsPage from "./pages/ForumPostDetailsPage.jsx";
 // Import Page Components - Enhanced Dashboard
 import EnhancedDashboardPage from "./pages/EnhancedDashboardPage.jsx";
 
+// Import route protection components
+import StudentOnlyRoute from "./components/StudentOnlyRoute.jsx";
+import RecruiterOnlyRoute from "./components/RecruiterOnlyRoute.jsx";
+import AdminOnlyRoute from "./components/AdminOnlyRoute.jsx";
+
 // Create the router configuration
 const router = createBrowserRouter([
   // ============================================
@@ -67,78 +76,138 @@ const router = createBrowserRouter([
   // MAIN APP ROUTES (WITH NAVBAR)
   // ============================================
   {
-    element: <MainLayout />, // 🎯 This wraps all child routes with Navbar
+    element: <MainLayout />,
     children: [
-      // STUDENT PROFILE ROUTES
+      // STUDENT-ONLY ROUTES (Protected from recruiters)
       {
         path: "/create-profile",
-        element: <CreateProfilePage />,
+        element: (
+          <StudentOnlyRoute>
+            <CreateProfilePage />
+          </StudentOnlyRoute>
+        ),
       },
       {
         path: "/profile/view/:userId",
-        element: <ViewProfilePage />,
+        element: (
+          <StudentOnlyRoute>
+            <ViewProfilePage />
+          </StudentOnlyRoute>
+        ),
       },
       {
         path: "/profile/edit",
-        element: <EditProfilePage />,
+        element: (
+          <StudentOnlyRoute>
+            <EditProfilePage />
+          </StudentOnlyRoute>
+        ),
       },
 
-      // JOB DISCOVERY & APPLICATION ROUTES
+      // JOB DISCOVERY & APPLICATION ROUTES (Student-only)
       {
         path: "/jobs",
-        element: <JobSearchPage />,
+        element: (
+          <StudentOnlyRoute>
+            <JobSearchPage />
+          </StudentOnlyRoute>
+        ),
       },
       {
         path: "/jobs/:jobId",
-        element: <JobDetailsPage />,
+        element: (
+          <StudentOnlyRoute>
+            <JobDetailsPage />
+          </StudentOnlyRoute>
+        ),
       },
       {
         path: "/jobs/:jobId/apply",
-        element: <ApplicationConfirmPage />,
+        element: (
+          <StudentOnlyRoute>
+            <ApplicationConfirmPage />
+          </StudentOnlyRoute>
+        ),
       },
       {
         path: "/jobs/:jobId/application-success",
-        element: <ApplicationSuccessPage />,
+        element: (
+          <StudentOnlyRoute>
+            <ApplicationSuccessPage />
+          </StudentOnlyRoute>
+        ),
       },
 
-      // RECRUITER ROUTES
-      {
-        path: "/recruiter/dashboard",
-        element: <RecruiterDashboard />,
-      },
-      {
-        path: "/recruiter/jobs/create",
-        element: <CreateJobPage />,
-      },
-      {
-        path: "/recruiter/jobs/edit/:jobId",
-        element: <EditJobPage />,
-      },
-
-      // ADMIN ROUTES
-      {
-        path: "/admin/dashboard",
-        element: <AdminDashboard />,
-      },
-
-      // COMMUNITY FORUM ROUTES
+      // COMMUNITY FORUM ROUTES (Student-only)
       {
         path: "/forum",
-        element: <ForumPage />,
+        element: (
+          <StudentOnlyRoute>
+            <ForumPage />
+          </StudentOnlyRoute>
+        ),
       },
       {
         path: "/forum/create",
-        element: <CreateForumPostPage />,
+        element: (
+          <StudentOnlyRoute>
+            <CreateForumPostPage />
+          </StudentOnlyRoute>
+        ),
       },
       {
         path: "/forum/posts/:postId",
-        element: <ForumPostDetailsPage />,
+        element: (
+          <StudentOnlyRoute>
+            <ForumPostDetailsPage />
+          </StudentOnlyRoute>
+        ),
       },
 
-      // ENHANCED DASHBOARD ROUTE
+      // ENHANCED DASHBOARD ROUTE (Student-only)
       {
         path: "/dashboard/:userId",
-        element: <EnhancedDashboardPage />,
+        element: (
+          <StudentOnlyRoute>
+            <EnhancedDashboardPage />
+          </StudentOnlyRoute>
+        ),
+      },
+
+      // RECRUITER-ONLY ROUTES (Protected from students)
+      {
+        path: "/recruiter/dashboard",
+        element: (
+          <RecruiterOnlyRoute>
+            <RecruiterDashboard />
+          </RecruiterOnlyRoute>
+        ),
+      },
+      {
+        path: "/recruiter/jobs/create",
+        element: (
+          <RecruiterOnlyRoute>
+            <CreateJobPage />
+          </RecruiterOnlyRoute>
+        ),
+      },
+      {
+        path: "/recruiter/jobs/edit/:jobId",
+        element: (
+          <RecruiterOnlyRoute>
+            <EditJobPage />
+          </RecruiterOnlyRoute>
+        ),
+      },
+
+      // ADMIN-ONLY ROUTES (Protected from all others)
+      {
+        path: "/admin/dashboard",
+        element: (
+          <AdminOnlyRoute>
+            <AdminDashboard />
+          </AdminOnlyRoute>
+        ),
       },
     ],
   },
