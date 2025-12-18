@@ -6,6 +6,9 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 // Import CSS
 import "./index.css";
 
+// Import Layout
+import MainLayout from "./layouts/MainLayout.jsx";
+
 // Import Page Components - Authentication
 import App from "./App.jsx"; // Dev Login
 import LoginPage from "./pages/LoginPage.jsx";
@@ -30,18 +33,18 @@ import EditJobPage from "./pages/EditJobPage.jsx";
 // Import Page Components - Admin
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 
-// NEW: Import Page Components - Community Forum
+// Import Page Components - Community Forum
 import ForumPage from "./pages/ForumPage.jsx";
 import CreateForumPostPage from "./pages/CreateForumPostPage.jsx";
 import ForumPostDetailsPage from "./pages/ForumPostDetailsPage.jsx";
 
-// NEW: Import Page Components - Enhanced Dashboard
+// Import Page Components - Enhanced Dashboard
 import EnhancedDashboardPage from "./pages/EnhancedDashboardPage.jsx";
 
 // Create the router configuration
 const router = createBrowserRouter([
   // ============================================
-  // AUTHENTICATION ROUTES
+  // AUTHENTICATION ROUTES (NO NAVBAR)
   // ============================================
   {
     path: "/",
@@ -61,87 +64,83 @@ const router = createBrowserRouter([
   },
 
   // ============================================
-  // STUDENT PROFILE ROUTES
+  // MAIN APP ROUTES (WITH NAVBAR)
   // ============================================
   {
-    path: "/create-profile",
-    element: <CreateProfilePage />,
-  },
-  {
-    path: "/profile/view/:userId",
-    element: <ViewProfilePage />,
-  },
-  {
-    path: "/profile/edit",
-    element: <EditProfilePage />,
-  },
+    element: <MainLayout />, // 🎯 This wraps all child routes with Navbar
+    children: [
+      // STUDENT PROFILE ROUTES
+      {
+        path: "/create-profile",
+        element: <CreateProfilePage />,
+      },
+      {
+        path: "/profile/view/:userId",
+        element: <ViewProfilePage />,
+      },
+      {
+        path: "/profile/edit",
+        element: <EditProfilePage />,
+      },
 
-  // ============================================
-  // JOB DISCOVERY & APPLICATION ROUTES
-  // ============================================
-  {
-    path: "/jobs",
-    element: <JobSearchPage />,
-  },
-  {
-    path: "/jobs/:jobId",
-    element: <JobDetailsPage />,
-  },
-  {
-    path: "/jobs/:jobId/apply",
-    element: <ApplicationConfirmPage />,
-  },
-  {
-    path: "/jobs/:jobId/application-success",
-    element: <ApplicationSuccessPage />,
-  },
+      // JOB DISCOVERY & APPLICATION ROUTES
+      {
+        path: "/jobs",
+        element: <JobSearchPage />,
+      },
+      {
+        path: "/jobs/:jobId",
+        element: <JobDetailsPage />,
+      },
+      {
+        path: "/jobs/:jobId/apply",
+        element: <ApplicationConfirmPage />,
+      },
+      {
+        path: "/jobs/:jobId/application-success",
+        element: <ApplicationSuccessPage />,
+      },
 
-  // ============================================
-  // RECRUITER ROUTES
-  // ============================================
-  {
-    path: "/recruiter/dashboard",
-    element: <RecruiterDashboard />,
-  },
-  {
-    path: "/recruiter/jobs/create",
-    element: <CreateJobPage />,
-  },
-  {
-    path: "/recruiter/jobs/edit/:jobId",
-    element: <EditJobPage />,
-  },
+      // RECRUITER ROUTES
+      {
+        path: "/recruiter/dashboard",
+        element: <RecruiterDashboard />,
+      },
+      {
+        path: "/recruiter/jobs/create",
+        element: <CreateJobPage />,
+      },
+      {
+        path: "/recruiter/jobs/edit/:jobId",
+        element: <EditJobPage />,
+      },
 
-  // ============================================
-  // ADMIN ROUTES
-  // ============================================
-  {
-    path: "/admin/dashboard",
-    element: <AdminDashboard />,
-  },
+      // ADMIN ROUTES
+      {
+        path: "/admin/dashboard",
+        element: <AdminDashboard />,
+      },
 
-  // ============================================
-  // NEW: COMMUNITY FORUM ROUTES
-  // ============================================
-  {
-    path: "/forum",
-    element: <ForumPage />,
-  },
-  {
-    path: "/forum/create",
-    element: <CreateForumPostPage />,
-  },
-  {
-    path: "/forum/posts/:postId",
-    element: <ForumPostDetailsPage />,
-  },
+      // COMMUNITY FORUM ROUTES
+      {
+        path: "/forum",
+        element: <ForumPage />,
+      },
+      {
+        path: "/forum/create",
+        element: <CreateForumPostPage />,
+      },
+      {
+        path: "/forum/posts/:postId",
+        element: <ForumPostDetailsPage />,
+      },
 
-  // ============================================
-  // NEW: ENHANCED DASHBOARD ROUTE
-  // ============================================
-  {
-    path: "/dashboard/:userId",
-    element: <EnhancedDashboardPage />,
+      // ENHANCED DASHBOARD ROUTE
+      {
+        path: "/dashboard/:userId",
+        element: <EnhancedDashboardPage />,
+      },
+    ],
   },
 ]);
 
