@@ -9,12 +9,18 @@ function ForumPostDetailsPage() {
   const [commentInput, setCommentInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false); // For comment submission
 
-  // FIXED: Wrapped fetchPostDetails in useCallback to prevent infinite loops
   const fetchPostDetails = useCallback(async () => {
     try {
       setLoading(true);
+      setError("");
       const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
       const response = await fetch(
         `http://localhost:1350/api/forum/posts/${postId}`,
         {
@@ -25,23 +31,26 @@ function ForumPostDetailsPage() {
       if (!response.ok) throw new Error("Failed to fetch post");
 
       const data = await response.json();
-      setPost(data.post);
-      setComments(data.comments);
+      if (data.success) {
+        setPost(data.post);
+        setComments(data.comments);
+      } else {
+        throw new Error(data.error || "Could not load post data.");
+      }
     } catch (err) {
-      console.error("Error:", err);
-      setError("Failed to load post");
+      console.error("Error fetching post details:", err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [postId]); // FIXED: Added postId as dependency
+  }, [postId, navigate]);
 
-  // FIXED: Removed unused currentUserId state and logic
-  // FIXED: Added fetchPostDetails to dependency array
   useEffect(() => {
     fetchPostDetails();
   }, [fetchPostDetails]);
 
   const handleLikePost = async () => {
+    if (!post) return;
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
@@ -52,9 +61,12 @@ function ForumPostDetailsPage() {
         }
       );
 
-      if (!response.ok) throw new Error("Failed to like post");
-
       const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to update like status.");
+      }
+
+      // Update state based on the reliable response from the server
       setPost((prev) => ({
         ...prev,
         likeCount: data.likeCount,
@@ -62,13 +74,15 @@ function ForumPostDetailsPage() {
       }));
     } catch (err) {
       console.error("Error liking post:", err);
+      alert(err.message); // Give user feedback
     }
   };
 
   const handleAddComment = async (e) => {
     e.preventDefault();
-    if (!commentInput.trim()) return;
+    if (!commentInput.trim() || isSubmitting) return;
 
+    setIsSubmitting(true);
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
@@ -83,15 +97,19 @@ function ForumPostDetailsPage() {
         }
       );
 
-      if (!response.ok) throw new Error("Failed to add comment");
-
       const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to add comment.");
+      }
+
+      // Add the new comment from the server response to the list
       setComments((prev) => [...prev, data.comment]);
-      setCommentInput("");
-      alert("Comment added successfully!");
+      setCommentInput(""); // Clear input on success
     } catch (err) {
       console.error("Error adding comment:", err);
-      alert("Failed to add comment");
+      alert(err.message); // Give user feedback
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -106,18 +124,22 @@ function ForumPostDetailsPage() {
         }
       );
 
-      if (!response.ok) throw new Error("Failed to like comment");
-
       const data = await response.json();
-      setComments((prev) =>
-        prev.map((comment) =>
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to like comment.");
+      }
+
+      // Update the specific comment in the comments array
+      setComments((prevComments) =>
+        prevComments.map((comment) =>
           comment._id === commentId
             ? { ...comment, likeCount: data.likeCount, isLiked: data.isLiked }
             : comment
         )
       );
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Error liking comment:", err);
+      alert(err.message); // Give user feedback
     }
   };
 
@@ -136,13 +158,13 @@ function ForumPostDetailsPage() {
   if (error || !post) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
+        <div className="text-center p-8 bg-white shadow-md rounded-lg">
           <p className="text-red-600 text-xl mb-4">
             {error || "Post not found"}
           </p>
           <button
             onClick={() => navigate("/forum")}
-            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-6 py-2 bg-blue-600 text-white rounded-md"
           >
             Back to Forum
           </button>
@@ -156,46 +178,23 @@ function ForumPostDetailsPage() {
       <div className="max-w-4xl mx-auto">
         <button
           onClick={() => navigate("/forum")}
-          className="mb-4 flex items-center text-blue-600 hover:text-blue-800 font-semibold"
+          className="mb-4 text-blue-600 font-semibold"
         >
           ← Back to Forum
         </button>
 
         {/* Post */}
         <div className="bg-white p-8 rounded-lg shadow-md mb-6">
-          <div className="mb-6">
-            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
-              {post.category}
-            </span>
-          </div>
-
           <h1 className="text-3xl font-bold text-gray-800 mb-4">
             {post.title}
           </h1>
-
           <div className="flex items-center gap-4 text-sm text-gray-600 mb-6">
             <span>By {post.author.name}</span>
-            {post.author.department && <span>• {post.author.department}</span>}
             <span>• {formatDate(post.createdAt)}</span>
           </div>
-
-          <div className="prose max-w-none mb-6">
-            <p className="text-gray-700 whitespace-pre-wrap">{post.content}</p>
-          </div>
-
-          {post.tags && post.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-6">
-              {post.tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded"
-                >
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          )}
-
+          <p className="text-gray-700 whitespace-pre-wrap mb-6">
+            {post.content}
+          </p>
           <div className="flex items-center gap-6 pt-6 border-t">
             <button
               onClick={handleLikePost}
@@ -221,41 +220,9 @@ function ForumPostDetailsPage() {
               <span className="font-semibold">{post.likeCount}</span>
             </button>
             <div className="flex items-center gap-2 text-gray-600">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
-              </svg>
               <span className="font-semibold">{comments.length} Comments</span>
             </div>
             <div className="flex items-center gap-2 text-gray-600">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
-              </svg>
               <span className="font-semibold">{post.views} Views</span>
             </div>
           </div>
@@ -272,13 +239,14 @@ function ForumPostDetailsPage() {
               onChange={(e) => setCommentInput(e.target.value)}
               placeholder="Share your thoughts..."
               rows="4"
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 mb-3"
+              className="w-full p-3 border border-gray-300 rounded-md mb-3"
             />
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold"
+              disabled={isSubmitting}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold disabled:bg-gray-400"
             >
-              Post Comment
+              {isSubmitting ? "Posting..." : "Post Comment"}
             </button>
           </form>
         </div>
@@ -288,11 +256,8 @@ function ForumPostDetailsPage() {
           <h2 className="text-xl font-bold text-gray-800 mb-4">
             Comments ({comments.length})
           </h2>
-
           {comments.length === 0 ? (
-            <p className="text-gray-600 text-center py-8">
-              No comments yet. Be the first to comment!
-            </p>
+            <p className="text-gray-600">No comments yet.</p>
           ) : (
             <div className="space-y-4">
               {comments.map((comment) => (
@@ -304,11 +269,6 @@ function ForumPostDetailsPage() {
                     <span className="font-semibold text-gray-800">
                       {comment.author.name}
                     </span>
-                    {comment.author.department && (
-                      <span className="text-sm text-gray-500">
-                        • {comment.author.department}
-                      </span>
-                    )}
                     <span className="text-sm text-gray-500">
                       • {formatDate(comment.createdAt)}
                     </span>

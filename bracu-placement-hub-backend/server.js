@@ -675,7 +675,221 @@ app.get(
 // =================================================================
 // COMMUNITY FORUM APIs
 // =================================================================
-// ... (All existing forum code is correct)
+
+// Get all forum posts with filters
+app.get("/api/forum/posts", auth, async (req, res) => {
+  try {
+    const { category, search, sortBy = "createdAt" } = req.query;
+    let query = {};
+
+    if (category && category !== "All") {
+      query.category = category;
+    }
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { content: { $regex: search, $options: "i" } },
+        { tags: { $in: [new RegExp(search, "i")] } },
+      ];
+    }
+
+    let sortOptions = {};
+    if (sortBy === "likes") {
+      sortOptions = { "likes.length": -1, createdAt: -1 };
+    } else if (sortBy === "views") {
+      sortOptions = { views: -1, createdAt: -1 };
+    } else {
+      sortOptions = { isPinned: -1, createdAt: -1 };
+    }
+
+    const posts = await ForumPost.find(query)
+      .populate("author", "name email department")
+      .sort(sortOptions)
+      .lean();
+
+    const postsWithCounts = await Promise.all(
+      posts.map(async (post) => {
+        const commentCount = await ForumComment.countDocuments({
+          post: post._id,
+        });
+        return {
+          ...post,
+          likeCount: post.likes.length,
+          commentCount,
+          isLiked: post.likes.some(
+            (like) => like.toString() === req.user.id.toString()
+          ),
+        };
+      })
+    );
+
+    res.json({ success: true, posts: postsWithCounts });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get single forum post with comments
+app.get("/api/forum/posts/:postId", auth, async (req, res) => {
+  try {
+    const post = await ForumPost.findById(req.params.postId)
+      .populate("author", "name email department studentId")
+      .lean();
+
+    if (!post) {
+      return res.status(404).json({ success: false, error: "Post not found" });
+    }
+
+    await ForumPost.findByIdAndUpdate(req.params.postId, {
+      $inc: { views: 1 },
+    });
+
+    const comments = await ForumComment.find({ post: req.params.postId })
+      .populate("author", "name email department")
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const commentsWithLikes = comments.map((comment) => ({
+      ...comment,
+      likeCount: comment.likes.length,
+      isLiked: comment.likes.some(
+        (like) => like.toString() === req.user.id.toString()
+      ),
+    }));
+
+    res.json({
+      success: true,
+      post: {
+        ...post,
+        likeCount: post.likes.length,
+        commentCount: comments.length,
+        isLiked: post.likes.some(
+          (like) => like.toString() === req.user.id.toString()
+        ),
+      },
+      comments: commentsWithLikes,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Create new forum post
+app.post("/api/forum/posts", auth, async (req, res) => {
+  try {
+    const { title, content, category, tags } = req.body;
+    if (!title || !content) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Title and content are required" });
+    }
+    const newPost = new ForumPost({
+      title,
+      content,
+      category: category || "General Discussion",
+      tags: tags || [],
+      author: req.user.id,
+    });
+    await newPost.save();
+    const populatedPost = await ForumPost.findById(newPost._id).populate(
+      "author",
+      "name email department"
+    );
+    res.status(201).json({
+      success: true,
+      message: "Post created successfully",
+      post: populatedPost,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Like/Unlike a forum post
+app.post("/api/forum/posts/:postId/like", auth, async (req, res) => {
+  try {
+    const post = await ForumPost.findById(req.params.postId);
+    if (!post) {
+      return res.status(404).json({ success: false, error: "Post not found" });
+    }
+    const userLikeIndex = post.likes.indexOf(req.user.id);
+    if (userLikeIndex > -1) {
+      post.likes.splice(userLikeIndex, 1);
+    } else {
+      post.likes.push(req.user.id);
+    }
+    await post.save();
+    res.json({
+      success: true,
+      likeCount: post.likes.length,
+      isLiked: userLikeIndex === -1,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Add comment to forum post
+app.post("/api/forum/posts/:postId/comments", auth, async (req, res) => {
+  try {
+    const { content } = req.body;
+    if (!content) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Comment content is required" });
+    }
+    const post = await ForumPost.findById(req.params.postId);
+    if (!post) {
+      return res.status(404).json({ success: false, error: "Post not found" });
+    }
+    const newComment = new ForumComment({
+      post: req.params.postId,
+      author: req.user.id,
+      content,
+    });
+    await newComment.save();
+    const populatedComment = await ForumComment.findById(newComment._id)
+      .populate("author", "name email department")
+      .lean();
+    res.status(201).json({
+      success: true,
+      comment: {
+        ...populatedComment,
+        likeCount: 0,
+        isLiked: false,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Like/Unlike a comment
+app.post("/api/forum/comments/:commentId/like", auth, async (req, res) => {
+  try {
+    const comment = await ForumComment.findById(req.params.commentId);
+    if (!comment) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Comment not found" });
+    }
+    const userLikeIndex = comment.likes.indexOf(req.user.id);
+    if (userLikeIndex > -1) {
+      comment.likes.splice(userLikeIndex, 1);
+    } else {
+      comment.likes.push(req.user.id);
+    }
+    await comment.save();
+    res.json({
+      success: true,
+      likeCount: comment.likes.length,
+      isLiked: userLikeIndex === -1,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 app.get("/api/forum/posts", auth, async (req, res) => {
   try {
     const { category, search, sortBy = "createdAt" } = req.query;
