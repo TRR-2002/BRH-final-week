@@ -7,7 +7,7 @@ function JobSearchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Filters State - Reverted to include salary and remove jobType
+  // Filters State
   const [filters, setFilters] = useState({
     keyword: "",
     location: "",
@@ -20,68 +20,93 @@ function JobSearchPage() {
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
-  // FIXED: Implemented Backend-Side Filtering
-  const fetchJobs = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
-      const token = localStorage.getItem("token");
+  // FIXED: Removed dependency on 'filters' state completely.
+  // This function now relies ONLY on the 'searchParams' argument passed to it.
+  const fetchJobs = useCallback(
+    async (searchParams) => {
+      try {
+        setLoading(true);
+        setError("");
+        const token = localStorage.getItem("token");
 
-      if (!token) {
-        setError("Please login to view jobs");
-        setTimeout(() => navigate("/login"), 2000);
-        return;
-      }
-
-      // Build query parameters from filters state
-      const params = new URLSearchParams();
-      if (filters.keyword) params.append("keyword", filters.keyword);
-      if (filters.location) params.append("location", filters.location);
-      if (filters.minSalary) params.append("minSalary", filters.minSalary);
-      if (filters.maxSalary) params.append("maxSalary", filters.maxSalary);
-
-      // Call the correct backend search endpoint
-      const response = await fetch(
-        `http://localhost:1350/api/jobs/search?${params.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        if (!token) {
+          setError("Please login to view jobs");
+          setTimeout(() => navigate("/login"), 2000);
+          return;
         }
-      );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch jobs");
+        // Ensure we have an object to work with
+        const currentFilters = searchParams || {
+          keyword: "",
+          location: "",
+          minSalary: "",
+          maxSalary: "",
+        };
+
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (currentFilters.keyword)
+          params.append("keyword", currentFilters.keyword);
+        if (currentFilters.location)
+          params.append("location", currentFilters.location);
+        if (currentFilters.minSalary)
+          params.append("minSalary", currentFilters.minSalary);
+        if (currentFilters.maxSalary)
+          params.append("maxSalary", currentFilters.maxSalary);
+
+        const response = await fetch(
+          `http://localhost:1350/api/jobs/search?${params.toString()}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch jobs");
+        }
+
+        const data = await response.json();
+        setJobs(data.jobs || []);
+      } catch (err) {
+        console.error("Error fetching jobs:", err);
+        setError(err.message || "Failed to load jobs");
+      } finally {
+        setLoading(false);
       }
+    },
+    [navigate]
+  ); // ✅ No 'filters' dependency needed anymore
 
-      const data = await response.json();
-      setJobs(data.jobs || []);
-    } catch (err) {
-      console.error("Error fetching jobs:", err);
-      setError(err.message || "Failed to load jobs");
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, navigate]); // Re-fetch when filters change
-
-  // Initial fetch on component mount
+  // Initial fetch on component mount ONLY
   useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchJobs();
-  };
-
-  const clearFilters = () => {
-    setFilters({
+    // We pass the explicit initial state here
+    fetchJobs({
       keyword: "",
       location: "",
       minSalary: "",
       maxSalary: "",
     });
-    // The useEffect will automatically re-fetch with cleared filters
+  }, [fetchJobs]);
+
+  // Handle Search Button Click
+  const handleSearch = (e) => {
+    e.preventDefault();
+    // We explicitly pass the CURRENT state when the button is clicked
+    fetchJobs(filters);
+  };
+
+  const clearFilters = () => {
+    const emptyFilters = {
+      keyword: "",
+      location: "",
+      minSalary: "",
+      maxSalary: "",
+    };
+    setFilters(emptyFilters);
+    // Fetch with empty filters
+    fetchJobs(emptyFilters);
   };
 
   if (loading) {
@@ -122,7 +147,7 @@ function JobSearchPage() {
                 value={filters.keyword}
                 onChange={handleFilterChange}
                 placeholder="Job title, company..."
-                className="w-full p-2 border border-gray-300 rounded-md"
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
 
@@ -137,7 +162,7 @@ function JobSearchPage() {
                 value={filters.location}
                 onChange={handleFilterChange}
                 placeholder="City or area"
-                className="w-full p-2 border border-gray-300 rounded-md"
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
 
@@ -152,7 +177,7 @@ function JobSearchPage() {
                 value={filters.minSalary}
                 onChange={handleFilterChange}
                 placeholder="e.g., 30000"
-                className="w-full p-2 border border-gray-300 rounded-md"
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
 
@@ -167,7 +192,7 @@ function JobSearchPage() {
                 value={filters.maxSalary}
                 onChange={handleFilterChange}
                 placeholder="e.g., 100000"
-                className="w-full p-2 border border-gray-300 rounded-md"
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
           </div>
@@ -225,7 +250,7 @@ function JobSearchPage() {
                 <p className="text-lg text-gray-600">{job.company}</p>
                 <p className="text-sm text-gray-500 mb-2">{job.location}</p>
 
-                {/* FIXED: Display Salary Range */}
+                {/* Display Salary Range */}
                 {(job.salaryMin || job.salaryMax) && (
                   <p className="text-md font-semibold text-green-600 my-2">
                     BDT {job.salaryMin || "..."} - {job.salaryMax || "..."}
