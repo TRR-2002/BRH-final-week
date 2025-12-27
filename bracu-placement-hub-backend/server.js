@@ -2313,7 +2313,111 @@ app.post("/api/messages/send", auth, async (req, res) => {
     await message.save();
     */
 // Create notification for recipient
+// Get a list of conversations
+app.get("/api/messages/conversations", auth, async (req, res) => {
+  try {
+    const myUserId = new mongoose.Types.ObjectId(req.user.id);
 
+    const conversations = await Message.aggregate([
+      // Find all messages involving the user
+      { $match: { $or: [{ sender: myUserId }, { recipient: myUserId }] } },
+      // Sort by creation date to find the last message correctly
+      { $sort: { createdAt: -1 } },
+      // Group by conversation partner
+      {
+        $group: {
+          _id: {
+            $cond: [{ $eq: ["$sender", myUserId] }, "$recipient", "$sender"],
+          },
+          lastMessage: { $first: "$$ROOT" }, // Get the entire last message document
+          unreadCount: {
+            // Count unread messages where I am the recipient
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$recipient", myUserId] },
+                    { $eq: ["$read", false] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+      // Sort conversations by the date of the last message
+      { $sort: { "lastMessage.createdAt": -1 } },
+      // Get the details of the other user
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "withUser",
+        },
+      },
+      // Deconstruct the withUser array
+      { $unwind: "$withUser" },
+      // Project the final fields
+      {
+        $project: {
+          _id: 0,
+          withUser: {
+            _id: "$withUser._id",
+            name: "$withUser.name",
+            email: "$withUser.email",
+          },
+          lastMessage: {
+            content: "$lastMessage.content",
+            createdAt: "$lastMessage.createdAt",
+          },
+          unreadCount: 1,
+        },
+      },
+    ]);
+
+    res.json({ success: true, conversations });
+  } catch (error) {
+    console.error("Error fetching conversations:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch conversations." });
+  }
+});
+
+// --- END OF BLOCK ---
+// Get message history with a specific user
+app.get("/api/messages/history/:otherUserId", auth, async (req, res) => {
+  try {
+    const myUserId = new mongoose.Types.ObjectId(req.user.id);
+    const otherUserId = new mongoose.Types.ObjectId(req.params.otherUserId);
+
+    // Find all messages between the two users
+    const messages = await Message.find({
+      $or: [
+        { sender: myUserId, recipient: otherUserId },
+        { sender: otherUserId, recipient: myUserId },
+      ],
+    }).sort({ createdAt: 1 }); // Sort oldest to newest
+
+    // Mark messages as read where I was the recipient
+    await Message.updateMany(
+      { sender: otherUserId, recipient: myUserId, read: false },
+      { $set: { read: true } }
+    );
+
+    res.json({ success: true, messages });
+  } catch (error) {
+    console.error("Error fetching message history:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch message history." });
+  }
+});
+
+// --- END OF BLOCK ---
 // Get inbox
 app.get("/api/messages/inbox", auth, async (req, res) => {
   try {
@@ -3237,7 +3341,36 @@ app.delete("/api/dashboard/saved-jobs/:userId", auth, async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+// =================================================================
+// USER UTILITIES
+// =================================================================
 
+// Find a single user by their email address
+app.get("/api/users/find-by-email", auth, async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Email query parameter is required." });
+    }
+
+    const user = await User.findOne({ email }).select("name email role _id");
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, error: "User not found with that email." });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error("Error finding user by email:", error);
+    res.status(500).json({ success: false, error: "Server error." });
+  }
+});
+
+// --- END OF BLOCK ---
 // =================================================================
 // ADMIN DASHBOARD (Module 3 - Feature 3)
 // =================================================================
