@@ -185,3 +185,18 @@ export const getConversations = async () => {
     throw error.response?.data || error;
   }
 };
+
+// Update application status
+export const updateApplicationStatus = async (applicationId, status) => {
+  try {
+    const headers = getAuthHeaders();
+    const response = await api.patch(
+      `/recruiter/applications/${applicationId}/status`,
+      { status },
+      { headers }
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};

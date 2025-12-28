@@ -1899,7 +1899,10 @@ app.get(
       }
 
       const applications = await Application.find({ job: req.params.jobId })
-        .populate("user", "name email")
+        .populate(
+          "user",
+          "name email department cgpa skills studentId workExperience education resumeLink"
+        )
         .sort({ createdAt: -1 });
 
       const responseJob = {
@@ -1911,6 +1914,66 @@ app.get(
         success: true,
         applications,
         jobTitle: job.title,
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// Update application status (Accept/Reject)
+app.patch(
+  "/api/recruiter/applications/:id/status",
+  auth,
+  recruiterAuth,
+  async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (!["Accepted", "Rejected"].includes(status)) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid status" });
+      }
+
+      const application = await Application.findById(req.params.id).populate(
+        "job"
+      );
+
+      if (!application) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Application not found" });
+      }
+
+      // Verify recruiter owns the job
+      const job = await Job.findOne({
+        _id: application.job._id,
+        recruiter: req.user.id,
+      });
+
+      if (!job) {
+        return res.status(403).json({
+          success: false,
+          error: "You are not authorized to manage this application",
+        });
+      }
+
+      application.status = status;
+      await application.save();
+
+      // Notify student
+      await createNotification(
+        application.user,
+        "application",
+        `Application ${status}`,
+        `Your application for ${job.title} at ${job.company} has been ${status}.`,
+        `/applications`
+      );
+
+      res.json({
+        success: true,
+        message: `Application ${status} successfully`,
+        application,
       });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
