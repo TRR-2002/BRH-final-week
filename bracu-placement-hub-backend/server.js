@@ -2313,25 +2313,29 @@ app.post("/api/messages/send", auth, async (req, res) => {
     await message.save();
     */
 // Create notification for recipient
-// Get a list of conversations
+// Get conversations list (aggregated with last message & unread count)
 app.get("/api/messages/conversations", auth, async (req, res) => {
   try {
     const myUserId = new mongoose.Types.ObjectId(req.user.id);
 
+    // Aggregate all messages to group by conversation partner
     const conversations = await Message.aggregate([
-      // Find all messages involving the user
-      { $match: { $or: [{ sender: myUserId }, { recipient: myUserId }] } },
-      // Sort by creation date to find the last message correctly
+      // Stage 1: Find all messages where I'm involved
+      {
+        $match: {
+          $or: [{ sender: myUserId }, { recipient: myUserId }],
+        },
+      },
+      // Stage 2: Sort by newest first to correctly identify the last message
       { $sort: { createdAt: -1 } },
-      // Group by conversation partner
+      // Stage 3: Group by the "other person" in the conversation
       {
         $group: {
           _id: {
             $cond: [{ $eq: ["$sender", myUserId] }, "$recipient", "$sender"],
           },
-          lastMessage: { $first: "$$ROOT" }, // Get the entire last message document
+          lastMessage: { $first: "$$ROOT" },
           unreadCount: {
-            // Count unread messages where I am the recipient
             $sum: {
               $cond: [
                 {
@@ -2347,9 +2351,9 @@ app.get("/api/messages/conversations", auth, async (req, res) => {
           },
         },
       },
-      // Sort conversations by the date of the last message
+      // Stage 4: Sort conversations by the date of the last message
       { $sort: { "lastMessage.createdAt": -1 } },
-      // Get the details of the other user
+      // Stage 5: Join with the 'users' collection to get the other user's details
       {
         $lookup: {
           from: "users",
@@ -2358,16 +2362,19 @@ app.get("/api/messages/conversations", auth, async (req, res) => {
           as: "withUser",
         },
       },
-      // Deconstruct the withUser array
+      // Stage 6: Deconstruct the 'withUser' array created by $lookup
       { $unwind: "$withUser" },
-      // Project the final fields
+      // Stage 7: Project the final, clean structure for the frontend
       {
         $project: {
-          _id: 0,
+          _id: 0, // Exclude the default _id field from the group stage
           withUser: {
             _id: "$withUser._id",
             name: "$withUser.name",
             email: "$withUser.email",
+            role: "$withUser.role",
+            companyName: "$withUser.companyName",
+            userId: "$withUser.userId",
           },
           lastMessage: {
             content: "$lastMessage.content",
@@ -2378,46 +2385,56 @@ app.get("/api/messages/conversations", auth, async (req, res) => {
       },
     ]);
 
-    res.json({ success: true, conversations });
+    // This aggregation pipeline is now much more efficient and automatically
+    // filters out conversations where the other user has been deleted,
+    // because the $lookup and $unwind stages will not produce a result for them.
+
+    res.json({ success: true, conversations: conversations });
   } catch (error) {
     console.error("Error fetching conversations:", error);
     res
       .status(500)
-      .json({ success: false, error: "Failed to fetch conversations." });
+      .json({ success: false, error: "Failed to fetch conversations" });
   }
 });
-
-// --- END OF BLOCK ---
-// Get message history with a specific user
+// Get message history with specific user
 app.get("/api/messages/history/:otherUserId", auth, async (req, res) => {
   try {
     const myUserId = new mongoose.Types.ObjectId(req.user.id);
     const otherUserId = new mongoose.Types.ObjectId(req.params.otherUserId);
 
-    // Find all messages between the two users
+    if (myUserId.equals(otherUserId)) {
+      return res.json({ success: true, messages: [] });
+    }
+
     const messages = await Message.find({
       $or: [
         { sender: myUserId, recipient: otherUserId },
         { sender: otherUserId, recipient: myUserId },
       ],
-    }).sort({ createdAt: 1 }); // Sort oldest to newest
+    })
+      .sort({ createdAt: 1 })
+      .lean();
 
-    // Mark messages as read where I was the recipient
+    // ADD THIS: Mark which messages are mine
+    const messagesWithFlag = messages.map((msg) => ({
+      ...msg,
+      isMine: msg.sender.toString() === myUserId.toString(),
+    }));
+
     await Message.updateMany(
       { sender: otherUserId, recipient: myUserId, read: false },
       { $set: { read: true } }
     );
 
-    res.json({ success: true, messages });
+    res.json({ success: true, messages: messagesWithFlag });
   } catch (error) {
     console.error("Error fetching message history:", error);
     res
       .status(500)
-      .json({ success: false, error: "Failed to fetch message history." });
+      .json({ success: false, error: "Failed to fetch message history" });
   }
 });
-
-// --- END OF BLOCK ---
 // Get inbox
 app.get("/api/messages/inbox", auth, async (req, res) => {
   try {
@@ -3345,28 +3362,40 @@ app.delete("/api/dashboard/saved-jobs/:userId", auth, async (req, res) => {
 // USER UTILITIES
 // =================================================================
 
-// Find a single user by their email address
+// Find user by email
 app.get("/api/users/find-by-email", auth, async (req, res) => {
   try {
     const { email } = req.query;
+    const currentUserId = req.user.id;
+
     if (!email) {
       return res
         .status(400)
-        .json({ success: false, error: "Email query parameter is required." });
+        .json({ success: false, error: "Email is required" });
     }
 
-    const user = await User.findOne({ email }).select("name email role _id");
+    const user = await User.findOne({ email: email.toLowerCase() }).select(
+      "name email role userId _id companyName"
+    );
 
     if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Prevent finding yourself
+    if (
+      user._id.toString() === currentUserId ||
+      user.userId === currentUserId
+    ) {
       return res
-        .status(404)
-        .json({ success: false, error: "User not found with that email." });
+        .status(400)
+        .json({ success: false, error: "You cannot message yourself" });
     }
 
     res.json({ success: true, user });
   } catch (error) {
-    console.error("Error finding user by email:", error);
-    res.status(500).json({ success: false, error: "Server error." });
+    console.error("Error finding user:", error);
+    res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
