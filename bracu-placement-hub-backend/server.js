@@ -3304,7 +3304,12 @@ app.post("/api/dashboard/saved-jobs/:userId", auth, async (req, res) => {
     if (!dashboard) {
       dashboard = new Dashboard({ user: req.user.id, savedJobs: [jobId] });
     } else {
-      if (dashboard.savedJobs.includes(jobId)) {
+      // Check if job is already saved (robust ObjectId comparison)
+      const isAlreadySaved = dashboard.savedJobs.some(
+        (id) => id.toString() === jobId
+      );
+
+      if (isAlreadySaved) {
         return res
           .status(400)
           .json({ success: false, error: "Job already saved" });
@@ -3340,17 +3345,18 @@ app.get("/api/dashboard/saved-jobs/:userId", auth, async (req, res) => {
 });
 
 // Remove saved job
-app.delete("/api/dashboard/saved-jobs/:userId", auth, async (req, res) => {
+app.delete("/api/dashboard/saved-jobs/:userId/:jobId", auth, async (req, res) => {
   try {
     if (req.user.userId !== req.params.userId) {
       return res.status(403).json({ success: false, error: "Access denied." });
     }
 
-    const { jobId } = req.body;
+    const { jobId } = req.params;
 
+    // Explicitly cast to ObjectId to ensure $pull works correctly
     await Dashboard.updateOne(
       { user: req.user.id },
-      { $pull: { savedJobs: jobId } }
+      { $pull: { savedJobs: new mongoose.Types.ObjectId(jobId) } }
     );
 
     res.json({ success: true, message: "Job removed from saved" });

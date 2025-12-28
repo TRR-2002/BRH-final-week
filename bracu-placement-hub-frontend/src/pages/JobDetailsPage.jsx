@@ -34,11 +34,21 @@ function JobDetailsPage() {
       setJob(jobData.job);
       setHasApplied(jobData.hasApplied);
 
-      // Check if the current job ID is in the list of saved jobs
-      if (overviewData.data?.savedJobs) {
-        const savedJobIds = overviewData.data.savedJobs.map((job) => job._id);
-        setIsSaved(savedJobIds.includes(jobId));
-      }
+        // Robust check for saved status: handles both populated objects and raw IDs
+        // NOTE: api.get returns axios object. content is in .data. Server response structure is { data: { savedJobs: [] } }
+        // So we need overviewData.data.data.savedJobs
+        const serverData = overviewData.data?.data;
+        if (serverData?.savedJobs) {
+          const isJobSaved = serverData.savedJobs.some((savedJob) => {
+            // If populated object, use ._id
+            if (savedJob && typeof savedJob === "object" && savedJob._id) {
+              return savedJob._id.toString() === jobId;
+            }
+            // If raw string ID
+            return savedJob.toString() === jobId;
+          });
+          setIsSaved(isJobSaved);
+        }
     } catch (err) {
       setError(err.error || "Failed to load job details");
     } finally {
@@ -237,9 +247,10 @@ function JobDetailsPage() {
                 onClick={handleSaveToggle}
                 className={`p-4 rounded-lg transition flex-shrink-0 ${
                   isSaved
-                    ? "bg-yellow-400 text-white"
+                    ? "bg-red-50 text-red-600 border border-red-200"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                 }`}
+                title={isSaved ? "Unsave Job" : "Save Job"}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

@@ -75,11 +75,10 @@ export const unsaveJob = async (jobId) => {
     const userId = localStorage.getItem("userId");
     if (!userId) throw new Error("User not found for unsaving job.");
 
-    // NOTE: The backend uses a DELETE request with a body, which is unconventional.
-    // Axios handles this, but it's good to be aware of.
-    const response = await api.delete(`/dashboard/saved-jobs/${userId}`, {
-      data: { jobId },
-    });
+    // NOTE: Updated to use URL parameters for robustness
+    const response = await api.delete(
+      `/dashboard/saved-jobs/${userId}/${jobId}`
+    );
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
