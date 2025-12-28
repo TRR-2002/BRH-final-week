@@ -224,7 +224,11 @@ const InterviewSchedule = ({ token }) => {
                         <span className="text-sm font-semibold">Meeting Link:</span>
                       </div>
                       <a
-                        href={interview.meetLink}
+                        href={
+                          interview.meetLink.startsWith('http://') || interview.meetLink.startsWith('https://')
+                            ? interview.meetLink
+                            : `https://${interview.meetLink}`
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-1 text-sm text-blue-600 hover:text-blue-800 underline break-all"
