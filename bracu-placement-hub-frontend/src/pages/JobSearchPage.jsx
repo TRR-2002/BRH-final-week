@@ -2,14 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { searchJobs, saveJob, unsaveJob } from "../api/jobApi";
-import api from "../api/axiosConfig";
+import { searchJobs } from "../api/jobApi";
 import Navbar from "../components/Navbar";
 
 function JobSearchPage() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
-  const [savedJobIds, setSavedJobIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -20,7 +18,7 @@ function JobSearchPage() {
     maxSalary: "",
   });
 
-  const fetchJobsAndSavedStatus = async () => {
+  const fetchJobs = async () => {
     setLoading(true);
     setError("");
     try {
@@ -30,22 +28,12 @@ function JobSearchPage() {
         return;
       }
 
-      const [jobsData, overviewData] = await Promise.all([
-        searchJobs(filters),
-        api.get("/dashboard/overview"),
-      ]);
+      const jobsData = await searchJobs(filters);
 
       if (jobsData.success) {
         setJobs(jobsData.jobsResponse || []);
       } else {
         throw new Error("Failed to fetch jobs");
-      }
-
-      if (overviewData.data?.savedJobs) {
-        const savedIds = new Set(
-          overviewData.data.savedJobs.map((job) => job._id)
-        );
-        setSavedJobIds(savedIds);
       }
     } catch (err) {
       setError(err.error || "Failed to load jobs.");
@@ -56,7 +44,7 @@ function JobSearchPage() {
   };
 
   useEffect(() => {
-    fetchJobsAndSavedStatus();
+    fetchJobs();
   }, []);
 
   const handleFilterChange = (e) => {
@@ -66,25 +54,7 @@ function JobSearchPage() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchJobsAndSavedStatus();
-  };
-
-  const handleSaveToggle = async (jobId, e) => {
-    e.stopPropagation();
-
-    try {
-      const newSavedJobIds = new Set(savedJobIds);
-      if (savedJobIds.has(jobId)) {
-        await unsaveJob(jobId);
-        newSavedJobIds.delete(jobId);
-      } else {
-        await saveJob(jobId);
-        newSavedJobIds.add(jobId);
-      }
-      setSavedJobIds(newSavedJobIds);
-    } catch (err) {
-      alert(err.error || "Could not update save status.");
-    }
+    fetchJobs();
   };
 
   return (
@@ -149,7 +119,6 @@ function JobSearchPage() {
           ) : (
             <div className="space-y-4">
               {jobs.map((job) => {
-                const isSaved = savedJobIds.has(job._id);
                 return (
                   // --- FIX: Removed onClick from this main div ---
                   <div
@@ -178,28 +147,7 @@ function JobSearchPage() {
                           </p>
                         )}
                       </div>
-                      <button
-                        onClick={(e) => handleSaveToggle(job._id, e)}
-                        className={`p-2 rounded-full transition ${
-                          isSaved
-                            ? "text-yellow-500"
-                            : "text-gray-400 hover:text-yellow-500"
-                        }`}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill={isSaved ? "currentColor" : "none"}
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-                        </svg>
-                      </button>
+
                     </div>
                     {/* --- FIX: Added the View Details button back --- */}
                     <div className="mt-4">
