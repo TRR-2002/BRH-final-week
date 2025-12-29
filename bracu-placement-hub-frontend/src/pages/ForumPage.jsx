@@ -169,6 +169,12 @@ function ForumPage() {
                       <p className="text-sm text-gray-600">
                         By {post.author?.name || "Unknown"} •{" "}
                         {new Date(post.createdAt).toLocaleDateString()}
+                        {post.isEdited && (
+                          <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-red-500 italic font-medium">
+                            <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                            edited
+                          </span>
+                        )}
                       </p>
                     </div>
                     <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">

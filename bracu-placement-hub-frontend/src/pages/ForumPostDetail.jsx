@@ -373,6 +373,12 @@ function ForumPostDetail() {
                   <span>by {post.author?.name || "Anonymous"}</span>
                   <span>•</span>
                   <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                  {post.isEdited && (
+                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-tighter bg-red-50 text-red-600 px-1.5 py-0.5 rounded italic border border-red-100">
+                      <span className="w-1 h-1 bg-red-600 rounded-full"></span>
+                      edited
+                    </span>
+                  )}
                 </div>
                 <p className="text-gray-700 leading-relaxed mb-6 whitespace-pre-wrap">
                   {post.content}
@@ -438,6 +444,12 @@ function ForumPostDetail() {
                       <span className="text-sm text-gray-500">
                         {new Date(comment.createdAt).toLocaleDateString()}
                       </span>
+                      {comment.isEdited && (
+                        <span className="flex items-center gap-1 text-[10px] text-red-500 italic font-medium">
+                          <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                          edited
+                        </span>
+                      )}
                       {comment.flagged && (
                         <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
                           Flagged

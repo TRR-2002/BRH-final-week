@@ -657,6 +657,7 @@ const ForumPostSchema = new mongoose.Schema(
     likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     tags: { type: [String], default: [] }, // An array of strings, defaults to empty
     views: { type: Number, default: 0 }, // A number, defaults to 0
+    isEdited: { type: Boolean, default: false },
     flagged: { type: Boolean, default: false },
     flagReason: String,
     aiAnalysis: String,
@@ -681,6 +682,7 @@ const ForumCommentSchema = new mongoose.Schema(
     },
     content: { type: String, required: true },
     likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // <-- ADD THIS LINE
+    isEdited: { type: Boolean, default: false },
     flagged: { type: Boolean, default: false },
   },
   { timestamps: true }
@@ -3536,6 +3538,7 @@ app.put("/api/forum/posts/:postId", auth, async (req, res) => {
     post.flagged = moderation.flagged;
     post.flagReason = moderation.flagged ? moderation.flags.join("; ") : null;
     post.aiAnalysis = moderation.analysis;
+    post.isEdited = true;
 
     await post.save();
 
@@ -3578,6 +3581,7 @@ app.put("/api/forum/comments/:commentId", auth, async (req, res) => {
 
     comment.content = content;
     comment.flagged = moderation.flagged;
+    comment.isEdited = true;
 
     await comment.save();
 
