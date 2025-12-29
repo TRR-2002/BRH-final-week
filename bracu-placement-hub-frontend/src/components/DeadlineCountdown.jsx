@@ -81,7 +81,7 @@ const DeadlineCountdown = ({ token }) => {
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
           <Calendar className="w-6 h-6 mr-2 text-blue-500" />
-          Application Deadlines
+          Deadlines
         </h2>
 
         {deadlines.length === 0 ? (
