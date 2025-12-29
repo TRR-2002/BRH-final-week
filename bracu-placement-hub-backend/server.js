@@ -513,6 +513,11 @@ const ApplicationSchema = new mongoose.Schema(
       ],
       education: [{ institution: String, degree: String, year: String }],
     },
+    // Interview scheduling fields
+    interviewScheduled: { type: Boolean, default: false },
+    interviewTime: Date,
+    interviewMeetLink: String,
+    interviewCalendarEventId: String,
   },
   { timestamps: true }
 );
@@ -1028,6 +1033,7 @@ app.post("/api/auth/login", async (req, res) => {
       message: "Login successful",
       token,
       user: {
+        _id: user._id,
         userId: user.userId,
         name: user.name,
         email: user.email,
@@ -1899,7 +1905,10 @@ app.get(
       }
 
       const applications = await Application.find({ job: req.params.jobId })
-        .populate("user", "name email")
+        .populate(
+          "user",
+          "name email department cgpa skills studentId workExperience education resumeLink"
+        )
         .sort({ createdAt: -1 });
 
       const responseJob = {
@@ -1917,6 +1926,279 @@ app.get(
     }
   }
 );
+
+// Update application status (Accept/Reject)
+app.patch(
+  "/api/recruiter/applications/:id/status",
+  auth,
+  recruiterAuth,
+  async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (!["Accepted", "Rejected"].includes(status)) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid status" });
+      }
+
+      const application = await Application.findById(req.params.id).populate(
+        "job"
+      );
+
+      if (!application) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Application not found" });
+      }
+
+      // Verify recruiter owns the job
+      const job = await Job.findOne({
+        _id: application.job._id,
+        recruiter: req.user.id,
+      });
+
+      if (!job) {
+        return res.status(403).json({
+          success: false,
+          error: "You are not authorized to manage this application",
+        });
+      }
+
+      application.status = status;
+      await application.save();
+
+      // Notify student
+      await createNotification(
+        application.user,
+        "application",
+        `Application ${status}`,
+        `Your application for ${job.title} at ${job.company} has been ${status}.`,
+        `/applications`
+      );
+
+      res.json({
+        success: true,
+        message: `Application ${status} successfully`,
+        application,
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// Schedule interview for accepted application
+app.post(
+  "/api/recruiter/applications/:id/schedule-interview",
+  auth,
+  recruiterAuth,
+  async (req, res) => {
+    try {
+      const { interviewTime, meetLink } = req.body;
+
+      if (!interviewTime) {
+        return res.status(400).json({
+          success: false,
+          error: "Interview time is required",
+        });
+      }
+
+      const application = await Application.findById(req.params.id)
+        .populate("job")
+        .populate("user", "email name");
+
+      if (!application) {
+        return res.status(404).json({
+          success: false,
+          error: "Application not found",
+        });
+      }
+
+      // Verify recruiter owns the job
+      const job = await Job.findOne({
+        _id: application.job._id,
+        recruiter: req.user.id,
+      });
+
+      if (!job) {
+        return res.status(403).json({
+          success: false,
+          error: "You are not authorized to schedule interviews for this job",
+        });
+      }
+
+      // Verify application is accepted
+      if (application.status !== "Accepted") {
+        return res.status(400).json({
+          success: false,
+          error: "Can only schedule interviews for accepted applications",
+        });
+      }
+
+      // Get recruiter email
+      const recruiter = await User.findById(req.user.id);
+
+      // Schedule interview on Google Calendar
+      const calendarResult = await scheduleInterviewSlot(
+        application.user.email,
+        recruiter.email,
+        job.title,
+        job.company,
+        interviewTime,
+        meetLink
+      );
+
+      // Store interview details in application
+      // Parse the datetime string and create a proper Date object
+      // The interviewTime comes as "2025-12-30T18:05" from datetime-local input
+      const interviewDate = new Date(interviewTime);
+      
+      application.interviewScheduled = true;
+      application.interviewTime = interviewDate;
+      application.interviewMeetLink = meetLink;
+      application.interviewCalendarEventId = calendarResult.success
+        ? calendarResult.eventId
+        : null;
+      await application.save();
+
+      // Notify student about interview
+      await createNotification(
+        application.user._id,
+        "application",
+        "Interview Scheduled",
+        `Your interview for ${job.title} at ${job.company} has been scheduled for ${new Date(
+          interviewTime
+        ).toLocaleString()}.${meetLink ? ` Meeting link: ${meetLink}` : ""}`,
+        `/applications`
+      );
+
+      res.json({
+        success: true,
+        message: "Interview scheduled successfully",
+        interview: {
+          time: interviewTime,
+          meetLink,
+          calendarSynced: calendarResult.success,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// =================================================================
+// CALENDAR API - Get all deadlines and interviews
+// =================================================================
+app.get("/api/calendar/deadlines", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    let events = [];
+
+    if (userRole === "student") {
+      // For students: Get job application deadlines and scheduled interviews
+      
+      // Get jobs student has applied to
+      const studentApplications = await Application.find({ user: userId })
+        .populate("job")
+        .lean();
+
+      studentApplications.forEach((app) => {
+        if (app.job && app.job.applicationDeadline) {
+          events.push({
+            jobTitle: app.job.title,
+            company: app.job.company,
+            deadline: app.job.applicationDeadline,
+            eventType: "application_deadline",
+          });
+        }
+      });
+
+      // Get scheduled interviews for accepted applications
+      const acceptedApplications = await Application.find({
+        user: userId,
+        status: "Accepted",
+        interviewScheduled: true,
+      })
+        .populate("job")
+        .lean();
+
+      acceptedApplications.forEach((app) => {
+        if (app.interviewTime) {
+          events.push({
+            jobTitle: app.job.title,
+            company: app.job.company,
+            deadline: app.interviewTime,
+            eventType: "interview",
+            meetLink: app.interviewMeetLink,
+          });
+        }
+      });
+    } else if (userRole === "recruiter") {
+      // For recruiters: Get their posted jobs and scheduled interviews
+      
+      // Get jobs posted by recruiter
+      const recruiterJobs = await Job.find({ recruiter: userId }).lean();
+
+      recruiterJobs.forEach((job) => {
+        if (job.applicationDeadline) {
+          events.push({
+            jobTitle: job.title,
+            company: job.company,
+            deadline: job.applicationDeadline,
+            eventType: "job_posting_deadline",
+          });
+        }
+      });
+
+      // Get scheduled interviews for recruiter's jobs
+      const scheduledInterviews = await Application.find({
+        interviewScheduled: true,
+      })
+        .populate("job")
+        .populate("user", "name email")
+        .lean();
+
+      const recruiterInterviews = scheduledInterviews.filter(
+        (app) => app.job && app.job.recruiter.toString() === userId
+      );
+
+      recruiterInterviews.forEach((app) => {
+        if (app.interviewTime) {
+          events.push({
+            jobTitle: app.job.title,
+            company: app.job.company,
+            deadline: app.interviewTime,
+            eventType: "interview",
+            candidateName: app.user.name,
+            candidateEmail: app.user.email,
+            meetLink: app.interviewMeetLink,
+          });
+        }
+      });
+    }
+
+    // Sort events by date
+    events.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+
+    // Separate upcoming and passed events
+    const now = new Date();
+    const upcoming = events.filter((e) => new Date(e.deadline) >= now);
+    const passed = events.filter((e) => new Date(e.deadline) < now);
+
+    res.json({
+      success: true,
+      upcoming,
+      passed,
+      total: events.length,
+    });
+  } catch (error) {
+    console.error("Error fetching calendar events:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // =================================================================
 // TALENT SOURCING & INVITATION SYSTEM (Module 2 - Feature 3)
@@ -3131,6 +3413,154 @@ app.post("/api/forum/posts/:postId/comments", auth, async (req, res) => {
   }
 });
 
+// Delete forum post
+app.delete("/api/forum/posts/:postId", auth, async (req, res) => {
+  try {
+    const post = await ForumPost.findById(req.params.postId);
+
+    if (!post) {
+      return res.status(404).json({ success: false, error: "Post not found" });
+    }
+
+    // Verify authorship
+    if (post.author.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: "You are not authorized to delete this post",
+      });
+    }
+
+    // Delete associated comments
+    await ForumComment.deleteMany({ post: req.params.postId });
+
+    // Delete the post
+    await ForumPost.findByIdAndDelete(req.params.postId);
+
+    res.json({ success: true, message: "Post and comments deleted successfully" });
+  } catch (error) {
+    console.error("Delete post error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Delete forum comment
+app.delete("/api/forum/comments/:commentId", auth, async (req, res) => {
+  try {
+    const comment = await ForumComment.findById(req.params.commentId);
+
+    if (!comment) {
+      return res.status(404).json({ success: false, error: "Comment not found" });
+    }
+
+    // Verify authorship
+    if (comment.author.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: "You are not authorized to delete this comment",
+      });
+    }
+
+    await ForumComment.findByIdAndDelete(req.params.commentId);
+
+    res.json({ success: true, message: "Comment deleted successfully" });
+  } catch (error) {
+    console.error("Delete comment error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Update forum post
+app.put("/api/forum/posts/:postId", auth, async (req, res) => {
+  try {
+    const { title, content, category, tags } = req.body;
+    const post = await ForumPost.findById(req.params.postId);
+
+    if (!post) {
+      return res.status(404).json({ success: false, error: "Post not found" });
+    }
+
+    // Verify authorship
+    if (post.author.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: "You are not authorized to edit this post",
+      });
+    }
+
+    // AI content moderation
+    const moderation = await moderateContent(`${title || post.title} ${content || post.content}`);
+
+    // Update fields
+    if (title) post.title = title;
+    if (content) post.content = content;
+    if (category) post.category = category;
+    if (tags) post.tags = tags;
+    
+    post.flagged = moderation.flagged;
+    post.flagReason = moderation.flagged ? moderation.flags.join("; ") : null;
+    post.aiAnalysis = moderation.analysis;
+
+    await post.save();
+
+    res.json({
+      success: true,
+      message: "Post updated successfully",
+      post,
+      moderated: moderation.flagged,
+    });
+  } catch (error) {
+    console.error("Update post error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Update forum comment
+app.put("/api/forum/comments/:commentId", auth, async (req, res) => {
+  try {
+    const { content } = req.body;
+    if (!content) {
+      return res.status(400).json({ success: false, error: "Content is required" });
+    }
+
+    const comment = await ForumComment.findById(req.params.commentId);
+
+    if (!comment) {
+      return res.status(404).json({ success: false, error: "Comment not found" });
+    }
+
+    // Verify authorship
+    if (comment.author.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: "You are not authorized to edit this comment",
+      });
+    }
+
+    // AI moderation
+    const moderation = await moderateContent(content);
+
+    comment.content = content;
+    comment.flagged = moderation.flagged;
+
+    await comment.save();
+
+    const populatedComment = await ForumComment.findById(comment._id).populate(
+      "author",
+      "name email"
+    );
+
+    res.json({
+      success: true,
+      message: "Comment updated successfully",
+      comment: populatedComment,
+      moderated: moderation.flagged,
+    });
+  } catch (error) {
+    console.error("Update comment error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // =================================================================
 // NOTIFICATION CENTER (Module 3 - Feature 3)
 // =================================================================
@@ -3304,7 +3734,12 @@ app.post("/api/dashboard/saved-jobs/:userId", auth, async (req, res) => {
     if (!dashboard) {
       dashboard = new Dashboard({ user: req.user.id, savedJobs: [jobId] });
     } else {
-      if (dashboard.savedJobs.includes(jobId)) {
+      // Check if job is already saved (robust ObjectId comparison)
+      const isAlreadySaved = dashboard.savedJobs.some(
+        (id) => id.toString() === jobId
+      );
+
+      if (isAlreadySaved) {
         return res
           .status(400)
           .json({ success: false, error: "Job already saved" });
@@ -3340,17 +3775,18 @@ app.get("/api/dashboard/saved-jobs/:userId", auth, async (req, res) => {
 });
 
 // Remove saved job
-app.delete("/api/dashboard/saved-jobs/:userId", auth, async (req, res) => {
+app.delete("/api/dashboard/saved-jobs/:userId/:jobId", auth, async (req, res) => {
   try {
     if (req.user.userId !== req.params.userId) {
       return res.status(403).json({ success: false, error: "Access denied." });
     }
 
-    const { jobId } = req.body;
+    const { jobId } = req.params;
 
+    // Explicitly cast to ObjectId to ensure $pull works correctly
     await Dashboard.updateOne(
       { user: req.user.id },
-      { $pull: { savedJobs: jobId } }
+      { $pull: { savedJobs: new mongoose.Types.ObjectId(jobId) } }
     );
 
     res.json({ success: true, message: "Job removed from saved" });
