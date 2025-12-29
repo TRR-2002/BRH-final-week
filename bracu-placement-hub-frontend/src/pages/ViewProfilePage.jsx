@@ -237,25 +237,13 @@ function ViewProfilePage() {
           )}
         </div>
 
-        {/* Action Buttons - Added Browse Jobs button */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+        {/* Action Buttons */}
+        <div className="flex justify-center mt-8">
           <button
             onClick={() => navigate("/profile/edit")}
-            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg transition"
+            className="w-full md:w-1/2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg transition"
           >
             Edit Profile
-          </button>
-          <button
-            onClick={() => navigate("/jobs")}
-            className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold text-lg transition"
-          >
-            Browse Jobs
-          </button>
-          <button
-            onClick={() => navigate("/")}
-            className="px-6 py-3 bg-gray-700 text-white rounded-md hover:bg-gray-800 font-semibold text-lg transition"
-          >
-            Back to Home
           </button>
         </div>
       </div>
