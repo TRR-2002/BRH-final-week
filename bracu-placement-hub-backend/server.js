@@ -1083,7 +1083,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       success: true,
       message: "OTP sent to your email",
       email,
-      otp, // REMOVE IN PRODUCTION
+      // otp, // Removed for production security
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

@@ -13,7 +13,7 @@ function ForgotPasswordPage() {
   const [success, setSuccess] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [sentOTP, setSentOTP] = useState(""); // For testing only
+  // const [sentOTP, setSentOTP] = useState(""); // Removed for production security
 
   const handleRequestOTP = async (e) => {
     e.preventDefault();
@@ -33,7 +33,7 @@ function ForgotPasswordPage() {
         throw new Error(data.error || "Failed to send OTP");
       }
 
-      setSentOTP(data.otp); // REMOVE IN PRODUCTION
+      // setSentOTP(data.otp); // Removed for production security
       setSuccess("OTP sent to your email! Valid for 10 minutes.");
       setStep(2);
     } catch (err) {
@@ -139,14 +139,7 @@ function ForgotPasswordPage() {
             </div>
           )}
 
-          {/* TESTING ONLY - Show OTP */}
-          {sentOTP && step === 2 && (
-            <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-md">
-              <p className="font-bold">⚠️ FOR TESTING ONLY:</p>
-              <p>Your OTP is: <span className="font-mono text-lg">{sentOTP}</span></p>
-              <p className="text-xs mt-2">Remove this in production!</p>
-            </div>
-          )}
+          {/* OTP display removed for production security */}
 
           {/* Step 1: Email */}
           {step === 1 && (
