@@ -38,13 +38,17 @@ function CreateJobPage() {
       .then((data) => {
         if (data.user.role !== "recruiter") {
           navigate("/");
+          return;
         }
-        // --- THIS IS THE ADDED LOGIC ---
-        // Auto-fill the company name from the recruiter's profile
-        if (data.user.companyName) {
-          setFormData((prev) => ({ ...prev, company: data.user.companyName }));
+        // --- IMPROVED LOGIC: Require company profile ---
+        if (!data.user.companyName) {
+          alert("Please create your company profile before posting a job.");
+          navigate("/recruiter/create-company-profile");
+          return;
         }
-        // --- END OF ADDED LOGIC ---
+        
+        setFormData((prev) => ({ ...prev, company: data.user.companyName }));
+        // --- END OF IMPROVED LOGIC ---
       })
       .catch(() => navigate("/login"));
   }, [navigate]);

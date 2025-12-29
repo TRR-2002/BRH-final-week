@@ -221,15 +221,15 @@ function EditJobPage() {
             {/* Company */}
             <div className="mb-4">
               <label className="block text-gray-700 font-bold mb-2">
-                Company Name *
+                Company Name
               </label>
               <input
                 type="text"
                 name="company"
                 value={formData.company}
                 onChange={handleInputChange}
-                className="w-full p-3 border border-gray-300 rounded-md"
-                required
+                className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+                readOnly
               />
             </div>
 

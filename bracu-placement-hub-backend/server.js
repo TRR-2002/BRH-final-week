@@ -1251,16 +1251,24 @@ app.put("/api/company/profile", auth, recruiterAuth, async (req, res) => {
       companySize,
     } = req.body;
 
+    // Prevent changing company name if it already exists
+    const user = await User.findById(req.user.id);
+    const updateData = {
+      companyIndustry,
+      companyDescription,
+      companyLocation,
+      companySize,
+    };
+
+    // Only allow setting companyName if it's currently empty
+    if (!user.companyName && companyName) {
+      updateData.companyName = companyName;
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
       {
-        $set: {
-          companyName,
-          companyIndustry,
-          companyDescription,
-          companyLocation,
-          companySize,
-        },
+        $set: updateData,
       },
       { new: true }
     ).select("-password");
@@ -1806,9 +1814,12 @@ app.put("/api/recruiter/jobs/:jobId", auth, recruiterAuth, async (req, res) => {
       });
     }
 
+    // Prevent updating company name on existing jobs
+    const { company, ...updateData } = req.body;
+
     const updatedJob = await Job.findByIdAndUpdate(
       req.params.jobId,
-      { $set: req.body },
+      { $set: updateData },
       { new: true, runValidators: true }
     );
 

@@ -113,16 +113,20 @@ function EditCompanyProfilePage() {
             {/* Form fields are identical to CreateCompanyProfilePage */}
             <div>
               <label className="block text-gray-700 font-bold mb-2">
-                Company Name *
+                Company Name
               </label>
               <input
                 type="text"
                 name="companyName"
                 value={formData.companyName}
                 onChange={handleInputChange}
-                className="w-full p-3 border rounded-md"
-                required
+                className="w-full p-3 border rounded-md bg-gray-100 cursor-not-allowed"
+                readOnly
+                placeholder="Company Name"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Company name cannot be changed once it is set.
+              </p>
             </div>
             <div>
               <label className="block text-gray-700 font-bold mb-2">

@@ -90,7 +90,11 @@ function CreateCompanyProfilePage() {
                 onChange={handleInputChange}
                 className="w-full p-3 border rounded-md"
                 required
+                placeholder="e.g. Acme Corporation"
               />
+              <p className="text-xs text-blue-600 mt-1">
+                💡 Note: Your company name cannot be changed once the profile is created. Please check for typos!
+              </p>
             </div>
             <div>
               <label className="block text-gray-700 font-bold mb-2">
