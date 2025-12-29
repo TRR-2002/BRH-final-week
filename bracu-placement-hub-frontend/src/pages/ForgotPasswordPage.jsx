@@ -13,7 +13,7 @@ function ForgotPasswordPage() {
   const [success, setSuccess] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  //const [sentOTP, setSentOTP] = useState(""); // For testing only
+  const [sentOTP, setSentOTP] = useState(""); // For testing only
 
   const handleRequestOTP = async (e) => {
     e.preventDefault();
@@ -33,7 +33,7 @@ function ForgotPasswordPage() {
         throw new Error(data.error || "Failed to send OTP");
       }
 
-      //setSentOTP(data.otp); // REMOVE IN PRODUCTION
+      setSentOTP(data.otp); // REMOVE IN PRODUCTION
       setSuccess("OTP sent to your email! Valid for 10 minutes.");
       setStep(2);
     } catch (err) {

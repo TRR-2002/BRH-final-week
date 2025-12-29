@@ -1081,7 +1081,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       success: true,
       message: "OTP sent to your email",
       email,
-      // REMOVE IN PRODUCTION
+      otp, // REMOVE IN PRODUCTION
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
