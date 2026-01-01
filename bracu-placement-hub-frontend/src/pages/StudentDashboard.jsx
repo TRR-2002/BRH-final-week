@@ -23,10 +23,12 @@ function StudentDashboard() {
   // State for on-demand fetched data
   const [allApplications, setAllApplications] = useState([]);
   const [allNotifications, setAllNotifications] = useState([]);
+  const [allInvitations, setAllInvitations] = useState([]);
 
   // State to prevent re-fetching
   const [applicationsFetched, setApplicationsFetched] = useState(false);
   const [notificationsFetched, setNotificationsFetched] = useState(false);
+  const [invitationsFetched, setInvitationsFetched] = useState(false);
 
   // Initial data fetch on component mount
   useEffect(() => {
@@ -137,6 +139,26 @@ function StudentDashboard() {
     setActiveTab(tabName);
     if (tabName === "applications") fetchAllApplications();
     if (tabName === "notifications") fetchAllNotifications();
+    if (tabName === "invitations") fetchAllInvitations();
+  };
+
+  const fetchAllInvitations = async () => {
+    if (invitationsFetched) return;
+    setTabLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:1350/api/student/invitations", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setAllInvitations(data.invitations || []);
+      setInvitationsFetched(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setTabLoading(false);
+    }
   };
 
   if (loading) {
@@ -226,6 +248,7 @@ function StudentDashboard() {
             {[
               "overview",
               "applications",
+              "invitations",
               "notifications",
               "savedJobs",
               "forum",
@@ -509,6 +532,60 @@ function StudentDashboard() {
                           ) : (
                             <p className="text-sm text-gray-500 text-center py-4">
                               You have not created any posts.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  case "invitations":
+                    return (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+                          Job Invitations ({allInvitations.length})
+                        </h3>
+                        <div className="space-y-4">
+                          {allInvitations.length > 0 ? (
+                            allInvitations.map((inv) => (
+                              <div
+                                key={inv._id}
+                                className={`bg-white p-6 rounded-lg shadow-sm border-l-4 ${
+                                  inv.status === "Pending"
+                                    ? "border-yellow-500 bg-yellow-50"
+                                    : inv.status === "Accepted"
+                                    ? "border-green-500"
+                                    : "border-red-500"
+                                }`}
+                              >
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                                        inv.status === "Pending" ? "bg-yellow-200 text-yellow-800" :
+                                        inv.status === "Accepted" ? "bg-green-200 text-green-800" :
+                                        "bg-red-200 text-red-800"
+                                      }`}>
+                                        {inv.status}
+                                      </span>
+                                      <p className="text-sm text-gray-500">
+                                        Received on {new Date(inv.createdAt).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                    <p className="text-xl font-bold text-gray-800">{inv.job?.title || "Unknown Position"}</p>
+                                    <p className="text-blue-600 font-semibold">{inv.job?.company || "Unknown Company"}</p>
+                                    <p className="text-sm text-gray-600 italic mt-2">"{inv.message}"</p>
+                                  </div>
+                                  <button
+                                    onClick={() => navigate("/invitations")}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold transition shadow-sm"
+                                  >
+                                    Review & Respond
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500 text-center py-4">
+                              You have no job invitations yet.
                             </p>
                           )}
                         </div>

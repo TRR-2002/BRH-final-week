@@ -233,19 +233,42 @@ function RecruiterDashboard() {
             </div>
           </div>
 
-          {/* Calendar Quick Access Card */}
-          <div className="mb-8 bg-gradient-to-br from-purple-600 via-pink-500 to-red-500 rounded-lg shadow-lg overflow-hidden">
-            <div className="p-8 text-white">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
+          {/* AI Talent Search Quick Access Card */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg shadow-lg overflow-hidden">
+              <div className="p-8 text-white h-full flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center mb-3">
+                    <span className="text-4xl mr-3">🔍</span>
+                    <h3 className="text-2xl font-bold">AI Talent Search</h3>
+                  </div>
+                  <p className="text-blue-100 mb-6 text-lg">
+                    Find perfect candidates using Gemini-powered semantic matching and skill analysis.
+                  </p>
+                </div>
+                <div>
+                  <button
+                    onClick={() => navigate("/recruiter/search-talent")}
+                    className="px-6 py-3 bg-white text-blue-700 font-bold rounded-lg hover:bg-gray-100 transition shadow-md"
+                  >
+                    🔍 Start Search
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-600 via-pink-500 to-red-500 rounded-lg shadow-lg overflow-hidden">
+              <div className="p-8 text-white h-full flex flex-col justify-between">
+                <div>
                   <div className="flex items-center mb-3">
                     <span className="text-4xl mr-3">📅</span>
                     <h3 className="text-2xl font-bold">Interview Calendar</h3>
                   </div>
-                  <p className="text-purple-100 mb-4 text-lg">
-                    Track deadlines, manage interviews, and never miss important
-                    dates
+                  <p className="text-purple-100 mb-6 text-lg">
+                    Track deadlines, manage interviews, and never miss important dates with your synced calendar.
                   </p>
+                </div>
+                <div>
                   <button
                     onClick={() => navigate("/calendar")}
                     className="px-6 py-3 bg-white text-purple-600 font-bold rounded-lg hover:bg-gray-100 transition shadow-md"
@@ -253,7 +276,6 @@ function RecruiterDashboard() {
                     📅 View Calendar
                   </button>
                 </div>
-                <div className="hidden md:block text-6xl opacity-20">⏰</div>
               </div>
             </div>
           </div>

@@ -14,6 +14,7 @@ function TalentSearchPage() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [aiEnabled, setAiEnabled] = useState(true);
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState("");
 
@@ -84,6 +85,7 @@ function TalentSearchPage() {
       }
 
       setStudents(data.students);
+      setAiEnabled(data.aiEnabled !== false);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -162,6 +164,22 @@ function TalentSearchPage() {
             Back to Dashboard
           </button>
         </div>
+
+        {/* AI Status Warning */}
+        {!aiEnabled && (
+          <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg shadow-sm">
+            <div className="flex items-center">
+              <span className="text-2xl mr-3">⚠️</span>
+              <div>
+                <h4 className="text-yellow-800 font-bold">Semantic Search is Limited</h4>
+                <p className="text-yellow-700 text-sm">
+                  The Gemini AI is not configured. Search is currently using literal keyword matching.
+                  Please check the <strong>BRACU_AI_SETUP.md</strong> guide to enable full AI capabilities.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Search Form */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
@@ -352,6 +370,15 @@ function TalentSearchPage() {
                         </div>
                       )}
                     </div>
+
+                    {/* AI Match Reason */}
+                    {student.matchReason && (
+                      <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                        <p className="text-sm text-blue-800 font-medium">
+                          <span className="font-bold">AI Insight:</span> {student.matchReason}
+                        </p>
+                      </div>
+                    )}
 
                     {/* Basic Info Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">

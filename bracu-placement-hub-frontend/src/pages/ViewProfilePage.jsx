@@ -6,8 +6,10 @@ import Navbar from "../components/Navbar";  // ← ADD THIS
 function ViewProfilePage() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [targetId, setTargetId] = useState(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -18,23 +20,30 @@ function ViewProfilePage() {
           return;
         }
 
-        const response = await fetch("http://localhost:1350/api/auth/profile", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        // Extract ID from URL
+        const pathParts = window.location.pathname.split("/");
+        const id = pathParts[pathParts.length - 1];
+        setTargetId(id);
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch profile");
-        }
+        const [targetRes, currentRes] = await Promise.all([
+          fetch(`http://localhost:1350/api/auth/profile-by-id/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch("http://localhost:1350/api/auth/profile", {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        ]);
 
-        const data = await response.json();
-        setUser(data.user);
+        if (!targetRes.ok) throw new Error("Failed to fetch target profile");
+        
+        const targetData = await targetRes.ok ? await targetRes.json() : null;
+        const currentData = await currentRes.ok ? await currentRes.json() : null;
+
+        setUser(targetData.user);
+        setCurrentUser(currentData.user);
       } catch (err) {
-        console.error("Error fetching profile:", err);
-        setError("Failed to load profile. Please try again.");
+        console.error("Error fetching profiles:", err);
+        setError("Failed to load profile details.");
       } finally {
         setLoading(false);
       }
@@ -42,6 +51,9 @@ function ViewProfilePage() {
 
     fetchProfile();
   }, [navigate]);
+
+  const isOwnProfile = currentUser && user && currentUser._id === user._id;
+  const isRecruiterViewingStudent = currentUser?.role === "recruiter" && user?.role === "student";
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -81,13 +93,41 @@ function ViewProfilePage() {
     <div className="min-h-screen bg-gray-100 py-12 px-4">
       <div className="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Your Profile</h1>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-semibold transition"
-          >
-            Logout
-          </button>
+          <h1 className="text-3xl font-bold">{isOwnProfile ? "Your Profile" : `${user.name}'s Profile`}</h1>
+          <div className="flex gap-2">
+            {!isOwnProfile && isRecruiterViewingStudent && (
+              <>
+                <button
+                  onClick={() => navigate("/recruiter/search-talent")}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold transition"
+                >
+                  📧 Invite to Job
+                </button>
+                <button
+                  onClick={() => navigate(`/messages?userId=${user._id}`)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold transition"
+                >
+                  💬 Message
+                </button>
+              </>
+            )}
+            {isOwnProfile && (
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-semibold transition"
+              >
+                Logout
+              </button>
+            )}
+            {!isOwnProfile && (
+              <button
+                 onClick={() => navigate(-1)}
+                 className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 font-semibold transition"
+              >
+                Back
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Basic Info */}
@@ -108,7 +148,7 @@ function ViewProfilePage() {
             </div>
             <div>
               <p className="text-gray-600">Student ID</p>
-              <p className="text-lg font-semibold">{user.studentId || "N/A"}</p>
+              <p className="text-lg font-semibold">{user.studentId || user.userId || "N/A"}</p>
             </div>
           </div>
         </div>
@@ -238,14 +278,16 @@ function ViewProfilePage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-center mt-8">
-          <button
-            onClick={() => navigate("/profile/edit")}
-            className="w-full md:w-1/2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg transition"
-          >
-            Edit Profile
-          </button>
-        </div>
+        {isOwnProfile && (
+          <div className="flex justify-center mt-8">
+            <button
+              onClick={() => navigate("/profile/edit")}
+              className="w-full md:w-1/2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg transition"
+            >
+              Edit Profile
+            </button>
+          </div>
+        )}
       </div>
     </div>
     </>

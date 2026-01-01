@@ -1137,6 +1137,26 @@ app.get("/api/auth/profile", auth, async (req, res) => {
   }
 });
 
+// Get profile by userId or _id
+app.get("/api/auth/profile-by-id/:id", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    let user = await User.findOne({ userId: id }).select("-password");
+    
+    if (!user && mongoose.Types.ObjectId.isValid(id)) {
+      user = await User.findById(id).select("-password");
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Profile status check
 app.get("/api/profile/status", auth, async (req, res) => {
   try {
@@ -2281,13 +2301,19 @@ app.post(
 
       // Keyword search across multiple fields
       if (keywords) {
-        const keywordRegex = new RegExp(keywords, "i");
-        query.$or = [
-          { name: keywordRegex },
-          { department: keywordRegex },
-          { interests: keywordRegex },
-          { skills: keywordRegex },
-        ];
+        const keywordParts = keywords.split(/\s+/).filter(k => k.trim());
+        if (keywordParts.length > 0) {
+          query.$or = [];
+          keywordParts.forEach(part => {
+            const regex = new RegExp(part, "i");
+            query.$or.push(
+              { name: regex },
+              { department: regex },
+              { interests: regex },
+              { skills: regex }
+            );
+          });
+        }
       }
 
       // Skills filter
@@ -2305,58 +2331,148 @@ app.post(
         query.department = new RegExp(department, "i");
       }
 
-      const students = await User.find(query)
+      // If keywords were provided but results are thin, we'll try to get more candidates
+      // by relaxing the keyword constraint and letting the AI do the heavy lifting
+      let students = await User.find(query)
         .select(
           "name email department cgpa skills interests studentId workExperience education"
         )
-        .limit(100);
+        .limit(100)
+        .lean();
 
-      // AI-powered relevance scoring
-      const scoredStudents = students.map((student) => {
-        let score = 0;
+      // Broaden search if keywords are present but matches are few
+      if (keywords && students.length < 5) {
+        const broaderQuery = { role: "student", isVerified: true, isActive: true };
+        if (department) broaderQuery.department = new RegExp(department, "i");
+        if (minCGPA) broaderQuery.cgpa = { $gte: parseFloat(minCGPA) };
+        
+        const additionalStudents = await User.find(broaderQuery)
+          .select("name email department cgpa skills interests studentId workExperience education")
+          .limit(50)
+          .lean();
+        
+        const existingIds = new Set(students.map(s => s._id.toString()));
+        additionalStudents.forEach(s => {
+          if (!existingIds.has(s._id.toString())) {
+            students.push(s);
+          }
+        });
+      }
 
-        // Skills matching (most important)
-        if (skills && skills.length > 0) {
-          const studentSkills = student.skills || [];
-          const matchingSkills = studentSkills.filter((s) =>
-            skills.some((reqSkill) =>
-              s.toLowerCase().includes(reqSkill.toLowerCase())
-            )
-          );
-          score += matchingSkills.length * 10;
+      if (students.length === 0) {
+        return res.json({
+          success: true,
+          count: 0,
+          students: [],
+          aiEnabled: true
+        });
+      }
+      // Semantic Ranking Logic
+      let finalStudents = [];
+
+      try {
+        if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "your_gemini_api_key_here") {
+          throw new Error("Gemini API not configured");
         }
 
-        // CGPA bonus
-        if (student.cgpa) {
-          score += student.cgpa * 2;
+        const prompt = `You are an AI recruitment assistant for BRACU Placement Hub.
+Your task is to rank the following students based on their relevance to this recruitment query.
+Be smart: if they search for "frontend", they are looking for "React", "Vue", "CSS", "HTML", etc.
+
+RECRUITMENT QUERY:
+- Keywords: "${keywords || "None"}"
+- Required Skills: "${skills && skills.length > 0 ? skills.join(", ") : "None"}"
+- Target Department: "${department || "Any"}"
+- Minimum CGPA: ${minCGPA || "N/A"}
+
+STUDENT PROFILES TO RANK (up to 100):
+${students.map((s, i) => `[${i}] Name: ${s.name}
+    * Department: ${s.department}
+    * Skills: ${s.skills ? s.skills.join(", ") : "None"}
+    * CGPA: ${s.cgpa || "N/A"}
+    * Experience: ${s.workExperience && Array.isArray(s.workExperience) ? s.workExperience.map(e => e.position).join(", ") : "None"}`).join("\n\n")}
+
+INSTRUCTIONS:
+1. Rank the top 20 most relevant students.
+2. For each student, provide a matchPercentage (0-100) and matchReason (brief 1-sentence explanation of why they are a good match).
+3. Return ONLY a JSON array in this format: [{"index": number, "matchPercentage": number, "matchReason": string}]
+4. Focus on skill matching and department relevance first.`;
+
+        // Using gemini-flash-latest on v1beta which is confirmed working for this environment/quota
+        const response = await fetch(
+          `${process.env.GEMINI_API_URL}/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+            }),
+          }
+        );
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error?.message || `Gemini API failure: ${response.status}`);
         }
 
-        // Work experience bonus
-        if (student.workExperience && student.workExperience.length > 0) {
-          score += student.workExperience.length * 5;
+        const aiText = data.candidates[0].content.parts[0].text;
+        const jsonMatch = aiText.match(/\[[\s\S]*\]/);
+        
+        if (!jsonMatch) {
+          throw new Error("Invalid AI response format");
         }
 
-        // Education bonus
-        if (student.education && student.education.length > 0) {
-          score += student.education.length * 3;
-        }
+        const rankings = JSON.parse(jsonMatch[0]);
 
-        return {
-          ...student.toObject(),
-          relevanceScore: score,
-          matchPercentage: skills
-            ? Math.min(100, (score / (skills.length * 10)) * 100)
-            : 0,
-        };
-      });
+        finalStudents = rankings.map(rank => {
+          const student = students[rank.index];
+          if (!student) return null;
+          return {
+            ...student,
+            relevanceScore: rank.matchPercentage,
+            matchPercentage: rank.matchPercentage,
+            matchReason: rank.matchReason
+          };
+        }).filter(s => s !== null);
 
-      // Sort by relevance
-      scoredStudents.sort((a, b) => b.relevanceScore - a.relevanceScore);
+      } catch (aiError) {
+        console.warn("⚠️ Semantic ranking failed, falling back to manual scoring:", aiError.message);
+        
+        // Fallback: Manual scoring logic
+        finalStudents = students.map((student) => {
+          let score = 0;
+          if (skills && skills.length > 0) {
+            const studentSkills = student.skills || [];
+            const matchingSkills = studentSkills.filter((s) =>
+              skills.some((reqSkill) =>
+                s.toLowerCase().includes(reqSkill.toLowerCase())
+              )
+            );
+            score += matchingSkills.length * 10;
+          }
+          if (student.cgpa) score += student.cgpa * 2;
+          if (student.workExperience && student.workExperience.length > 0) score += student.workExperience.length * 5;
+          if (student.education && student.education.length > 0) score += student.education.length * 3;
+
+          return {
+            ...student,
+            relevanceScore: score,
+            matchPercentage: skills && skills.length > 0 
+              ? Math.min(100, (score / (skills.length * 10)) * 100)
+              : Math.min(100, score * 10),
+            matchReason: "Direct keyword and skill match"
+          };
+        });
+
+        finalStudents.sort((a, b) => b.relevanceScore - a.relevanceScore);
+      }
 
       res.json({
         success: true,
-        count: scoredStudents.length,
-        students: scoredStudents,
+        count: finalStudents.length,
+        students: finalStudents,
+        aiEnabled: !(!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "your_gemini_api_key_here")
       });
     } catch (error) {
       console.error("Talent search error:", error);
