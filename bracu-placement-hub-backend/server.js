@@ -2157,80 +2157,6 @@ app.post(
 );
 
 // =================================================================
-// CALENDAR API - Get all deadlines and interviews
-// =================================================================
-app.get("/api/calendar/deadlines", auth, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const userRole = req.user.role;
-
-    let events = [];
-
-    if (userRole === "student") {
-      // ... existing student logic ...
-    } else if (userRole === "recruiter") {
-      // ... existing recruiter logic ...
-    } else if (userRole === "admin") {
-      // For Admins: Get EVERYTHING
-      
-      // Get all job deadlines
-      const allJobs = await Job.find({
-        applicationDeadline: { $exists: true, $ne: null }
-      }).lean();
-
-      allJobs.forEach(job => {
-        events.push({
-          jobTitle: job.title,
-          company: job.company,
-          deadline: job.applicationDeadline,
-          eventType: "job_posting_deadline",
-          adminView: true
-        });
-      });
-
-      // Get all interviews
-      const allInterviews = await Application.find({
-        interviewScheduled: true,
-      })
-        .populate("job")
-        .populate("user", "name")
-        .lean();
-
-      allInterviews.forEach(app => {
-        if (app.interviewTime && app.job) {
-          events.push({
-            jobTitle: app.job.title,
-            company: app.job.company,
-            deadline: app.interviewTime,
-            eventType: "interview",
-            candidateName: app.user?.name || "Unknown",
-            adminView: true
-          });
-        }
-      });
-    }
-
-    // Sort events by date
-    events.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
-
-    // Separate upcoming and passed events
-    const now = new Date();
-    const upcoming = events.filter((e) => new Date(e.deadline) >= now);
-    const passed = events.filter((e) => new Date(e.deadline) < now);
-
-    res.json({
-      success: true,
-      upcoming,
-      passed,
-      total: events.length,
-    });
-  } catch (error) {
-    console.error("Error fetching calendar events:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// =================================================================
 // TALENT SOURCING & INVITATION SYSTEM (Module 2 - Feature 3)
 // =================================================================
 
@@ -4806,17 +4732,163 @@ app.get("/api/calendar/recruitment-events", auth, async (req, res) => {
 // =================================================================
 
 // Get user's upcoming application deadlines
+// Unified Calendar Endpoint for All Roles
 app.get("/api/calendar/deadlines", auth, async (req, res) => {
   try {
-    const calendarEvents = await CalendarEvent.find({ user: req.user.id })
-      .populate("job", "title company")
-      .sort({ deadline: 1 })
-      .limit(10);
+    const userRole = req.user.role;
+    const userId = req.user.id;
+    let events = [];
 
-    // Separate upcoming and passed deadlines
+    // --- STRATEGY: Build 'events' array based on role ---
+    
+    // 1. STUDENTS: Applied Jobs & My Interviews
+    if (userRole === "student") {
+      // 1. Get ALL open jobs with deadlines (so new users can see opportunities)
+      const allOpenJobs = await Job.find({ 
+        status: "Open",
+        applicationDeadline: { $exists: true, $ne: null }
+      }).lean();
+
+      allOpenJobs.forEach(job => {
+        events.push({
+          jobTitle: job.title,
+          company: job.company,
+          deadline: job.applicationDeadline,
+          eventType: "job_opportunity"
+        });
+      });
+
+      // 2. Get applications with deadlines (mark these differently)
+      const myApplications = await Application.find({ user: userId })
+        .populate("job", "title company applicationDeadline")
+        .lean();
+
+      myApplications.forEach(app => {
+        if (app.job && app.job.applicationDeadline) {
+          // Mark applied jobs distinctly
+          events.push({
+            jobTitle: `✓ ${app.job.title}`,
+            company: app.job.company,
+            deadline: app.job.applicationDeadline,
+            eventType: "application_deadline",
+            applied: true
+          });
+        }
+        if (app.interviewScheduled && app.interviewTime) {
+           events.push({
+            jobTitle: `Interview: ${app.job?.title}`,
+            company: app.job?.company,
+            deadline: app.interviewTime,
+            eventType: "interview"
+          });
+        }
+      });
+      
+      // 3. Also add manually synced Google Calendar events if any
+      const manualEvents = await CalendarEvent.find({ user: userId }).lean();
+      manualEvents.forEach(e => {
+         events.push({
+            jobTitle: e.jobTitle || "Event",
+            company: e.company,
+            deadline: e.deadline,
+            eventType: e.eventType || "custom"
+         });
+      });
+
+      // Remove duplicates (applied jobs will override open jobs)
+      const uniqueEvents = [];
+      const seenDeadlines = new Set();
+      
+      // First add applied/interview events (priority)
+      events.filter(e => e.applied || e.eventType === "interview" || e.eventType === "custom")
+        .forEach(e => {
+          const key = `${e.deadline}-${e.jobTitle}`;
+          if (!seenDeadlines.has(key)) {
+            seenDeadlines.add(key);
+            uniqueEvents.push(e);
+          }
+        });
+      
+      // Then add job opportunities (only if not already applied)
+      events.filter(e => e.eventType === "job_opportunity")
+        .forEach(e => {
+          const key = `${e.deadline}-${e.jobTitle}`;
+          if (!seenDeadlines.has(key)) {
+            seenDeadlines.add(key);
+            uniqueEvents.push(e);
+          }
+        });
+      
+      events = uniqueEvents;
+    } 
+    
+    // 2. RECRUITERS: My Posted Job Deadlines & Scheduled Interviews
+    else if (userRole === "recruiter") {
+      // Find jobs posted by this recruiter
+      const myJobs = await Job.find({ recruiter: userId }).lean();
+      
+      myJobs.forEach(job => {
+         if (job.applicationDeadline) {
+           events.push({
+             jobTitle: job.title,
+             company: "My Posting",
+             deadline: job.applicationDeadline,
+             eventType: "job_deadline"
+           });
+         }
+      });
+      
+      // Find interviews for my jobs
+      const myJobIds = myJobs.map(j => j._id);
+      const myInterviews = await Application.find({ 
+        job: { $in: myJobIds },
+        interviewScheduled: true 
+      }).populate("job").populate("user", "name").lean();
+      
+      myInterviews.forEach(app => {
+         if (app.interviewTime) {
+           events.push({
+             jobTitle: `Interview with ${app.user?.name}`,
+             company: app.job?.title,
+             deadline: app.interviewTime,
+             eventType: "interview"
+           });
+         }
+      });
+    }
+
+    // 3. ADMINS: SEE EVERYTHING
+    else if (userRole === "admin") {
+      const allJobs = await Job.find({ applicationDeadline: { $exists: true } }).lean();
+      allJobs.forEach(job => {
+         events.push({
+           jobTitle: job.title,
+           company: `${job.company} (Deadline)`,
+           deadline: job.applicationDeadline,
+           eventType: "job_deadline"
+         });
+      });
+
+      const allInterviews = await Application.find({ interviewScheduled: true })
+        .populate("job").populate("user").lean();
+      
+      allInterviews.forEach(app => {
+         if(app.interviewTime){
+           events.push({
+             jobTitle: `Interview: ${app.user?.name}`,
+             company: app.job?.company,
+             deadline: app.interviewTime,
+             eventType: "interview"
+           });
+         }
+      });
+    }
+
+    // Sort and Separate
+    events.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
     const now = new Date();
-    const upcoming = calendarEvents.filter((e) => new Date(e.deadline) > now);
-    const passed = calendarEvents.filter((e) => new Date(e.deadline) <= now);
+    const upcoming = events.filter((e) => new Date(e.deadline) >= now);
+    const passed = events.filter((e) => new Date(e.deadline) < now);
 
     res.json({
       success: true,
@@ -4825,6 +4897,7 @@ app.get("/api/calendar/deadlines", auth, async (req, res) => {
       totalUpcoming: upcoming.length,
     });
   } catch (error) {
+    console.error("Calendar Error:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
