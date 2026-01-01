@@ -381,13 +381,21 @@ const adminAuth = (req, res, next) => {
 };
 
 // =================================================================
-// DATABASE CONNECTION
+// DATABASE CONNECTION (Serverless Optimized)
 // =================================================================
 const MONGODB_URI = process.env.MONGO_URI;
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => console.log("MongoDB connected successfully!"))
-  .catch((err) => console.error("MongoDB connection failed:", err));
+
+const connectDB = async () => {
+  if (mongoose.connection.readyState >= 1) return;
+  try {
+    await mongoose.connect(MONGODB_URI);
+    console.log("✅ Connected to MongoDB");
+  } catch (err) {
+    console.error("❌ MongoDB connection error:", err);
+  }
+};
+
+connectDB();
 
 // =================================================================
 // MONGOOSE SCHEMAS & MODELS
