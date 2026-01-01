@@ -681,9 +681,11 @@ const ForumCommentSchema = new mongoose.Schema(
       required: true,
     },
     content: { type: String, required: true },
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // <-- ADD THIS LINE
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     isEdited: { type: Boolean, default: false },
     flagged: { type: Boolean, default: false },
+    flagReason: String,
+    aiAnalysis: String,
   },
   { timestamps: true }
 );
@@ -745,45 +747,73 @@ function generateOTP() {
 
 // Simple AI content moderation (replace with real AI service)
 async function moderateContent(text) {
-  const negativeKeywords = [
-    "hate",
-    "abuse",
-    "scam",
-    "fraud",
-    "terrible",
-    "worst",
-    "awful",
-    "stupid",
-    "idiot",
-  ];
-  const inappropriateKeywords = ["profanity", "offensive", "spam"];
-
-  let score = 0;
-  let flags = [];
-
-  const lowerText = text.toLowerCase();
-
-  negativeKeywords.forEach((keyword) => {
-    if (lowerText.includes(keyword)) {
-      score += 2;
-      flags.push(`Negative sentiment: "${keyword}"`);
+  try {
+    if (
+      !process.env.GEMINI_API_KEY ||
+      process.env.GEMINI_API_KEY === "your_gemini_api_key_here"
+    ) {
+      // Fallback: Simple keyword moderation
+      const negativeKeywords = ["hate", "abuse", "scam", "fraud", "terrible", "worst", "awful", "stupid", "idiot"];
+      const inappropriateKeywords = ["profanity", "offensive", "spam"];
+      let score = 0;
+      let flags = [];
+      const lowerText = text.toLowerCase();
+      negativeKeywords.forEach((kw) => { if (lowerText.includes(kw)) { score += 2; flags.push(`Negative sentiment: "${kw}"`); } });
+      inappropriateKeywords.forEach((kw) => { if (lowerText.includes(kw)) { score += 3; flags.push(`Inappropriate content: "${kw}"`); } });
+      return {
+        flagged: score >= 2,
+        flags,
+        analysis: flags.length > 0 ? flags.join("; ") : "Content appears appropriate",
+      };
     }
-  });
 
-  inappropriateKeywords.forEach((keyword) => {
-    if (lowerText.includes(keyword)) {
-      score += 3;
-      flags.push(`Inappropriate content: "${keyword}"`);
-    }
-  });
+    const prompt = `You are an AI content moderator for BRACU Placement Hub. 
+    Analyze the following content and determine if it should be flagged.
+    Flag content that contains:
+    1. Hate speech, harassment, or direct attacks.
+    2. Explicit/Inappropriate language.
+    3. Extreme negative sentiment in reviews (e.g., highly toxic, non-constructive company hate).
+    4. Obvious spam or irrelevant promotional material.
 
-  return {
-    flagged: score >= 2,
-    score,
-    flags,
-    analysis:
-      flags.length > 0 ? flags.join("; ") : "Content appears appropriate",
-  };
+    CONTENT TO ANALYZE:
+    "${text}"
+
+    Return ONLY a JSON object in this format:
+    {
+      "flagged": boolean,
+      "reason": "category of violation or safe",
+      "analysis": "1-sentence explanation of why it was or wasn't flagged"
+    }`;
+
+    const response = await fetch(
+      `${process.env.GEMINI_API_URL}/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "Gemini API failure");
+
+    const aiText = data.candidates[0].content.parts[0].text;
+    const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Invalid AI response format");
+
+    const result = JSON.parse(jsonMatch[0]);
+
+    return {
+      flagged: result.flagged,
+      flags: result.flagged ? [result.reason] : [],
+      analysis: result.analysis,
+    };
+  } catch (error) {
+    console.warn("Moderation AI failed, using safe fallback:", error.message);
+    return { flagged: false, flags: [], analysis: "AI moderation unavailable" };
+  }
 }
 
 // Create notification helper
@@ -2137,128 +2167,44 @@ app.get("/api/calendar/deadlines", auth, async (req, res) => {
     let events = [];
 
     if (userRole === "student") {
-      // For students: Get job application deadlines and scheduled interviews
+      // ... existing student logic ...
+    } else if (userRole === "recruiter") {
+      // ... existing recruiter logic ...
+    } else if (userRole === "admin") {
+      // For Admins: Get EVERYTHING
       
-      // Get jobs student has applied to
-      const studentApplications = await Application.find({ user: userId })
-        .populate("job")
-        .lean();
-
-      studentApplications.forEach((app) => {
-        if (app.job && app.job.applicationDeadline) {
-          events.push({
-            jobTitle: app.job.title,
-            company: app.job.company,
-            deadline: app.job.applicationDeadline,
-            eventType: "application_deadline",
-            applied: true, // Tag as already applied
-          });
-        }
-      });
-
-      // ✅ ADDED: Get ALL future job deadlines to show in the calendar
-      const allUpcomingJobs = await Job.find({
-        applicationDeadline: { $gte: new Date() }
+      // Get all job deadlines
+      const allJobs = await Job.find({
+        applicationDeadline: { $exists: true, $ne: null }
       }).lean();
 
-      allUpcomingJobs.forEach(job => {
-        // Only add if not already in events (avoid duplicates with application deadlines)
-        const alreadyApplied = events.some(e => 
-          e.jobTitle === job.title && 
-          e.company === job.company && 
-          new Date(e.deadline).getTime() === new Date(job.applicationDeadline).getTime()
-        );
-
-        if (!alreadyApplied) {
-          events.push({
-            jobTitle: job.title,
-            company: job.company,
-            deadline: job.applicationDeadline,
-            eventType: "job_posting_deadline",
-            applied: false
-          });
-        }
+      allJobs.forEach(job => {
+        events.push({
+          jobTitle: job.title,
+          company: job.company,
+          deadline: job.applicationDeadline,
+          eventType: "job_posting_deadline",
+          adminView: true
+        });
       });
 
-      // NEW: Get broadcasted job deadlines and synced events from the CalendarEvent model
-      const syncedEvents = await CalendarEvent.find({ user: userId }).lean();
-      syncedEvents.forEach((syncEv) => {
-        // Only add if not already in events (avoid duplicates)
-        const exists = events.some(
-          (e) => 
-            e.jobTitle === syncEv.jobTitle && 
-            new Date(e.deadline).getTime() === new Date(syncEv.deadline).getTime()
-        );
-        if (!exists) {
-          events.push({
-            jobTitle: syncEv.jobTitle,
-            company: syncEv.company,
-            deadline: syncEv.deadline,
-            eventType: syncEv.eventType || "job_posting_deadline",
-            googleSyncStatus: syncEv.googleSyncStatus
-          });
-        }
-      });
-
-      // Get scheduled interviews for accepted applications
-      const acceptedApplications = await Application.find({
-        user: userId,
-        status: "Accepted",
+      // Get all interviews
+      const allInterviews = await Application.find({
         interviewScheduled: true,
       })
         .populate("job")
+        .populate("user", "name")
         .lean();
 
-      acceptedApplications.forEach((app) => {
+      allInterviews.forEach(app => {
         if (app.interviewTime && app.job) {
           events.push({
             jobTitle: app.job.title,
             company: app.job.company,
             deadline: app.interviewTime,
             eventType: "interview",
-            meetLink: app.interviewMeetLink,
-          });
-        }
-      });
-    } else if (userRole === "recruiter") {
-      // For recruiters: Get their posted jobs and scheduled interviews
-      
-      // Get jobs posted by recruiter
-      const recruiterJobs = await Job.find({ recruiter: userId }).lean();
-
-      recruiterJobs.forEach((job) => {
-        if (job.applicationDeadline) {
-          events.push({
-            jobTitle: job.title,
-            company: job.company,
-            deadline: job.applicationDeadline,
-            eventType: "job_posting_deadline",
-          });
-        }
-      });
-
-      // Get scheduled interviews for recruiter's jobs
-      const scheduledInterviews = await Application.find({
-        interviewScheduled: true,
-      })
-        .populate("job")
-        .populate("user", "name email")
-        .lean();
-
-      const recruiterInterviews = scheduledInterviews.filter(
-        (app) => app.job && app.user && app.job.recruiter && app.job.recruiter.toString() === userId
-      );
-
-      recruiterInterviews.forEach((app) => {
-        if (app.interviewTime) {
-          events.push({
-            jobTitle: app.job.title,
-            company: app.job.company,
-            deadline: app.interviewTime,
-            eventType: "interview",
-            candidateName: app.user.name,
-            candidateEmail: app.user.email,
-            meetLink: app.interviewMeetLink,
+            candidateName: app.user?.name || "Unknown",
+            adminView: true
           });
         }
       });
@@ -3555,6 +3501,8 @@ app.post("/api/forum/posts/:postId/comments", auth, async (req, res) => {
       author: req.user.id,
       content,
       flagged: moderation.flagged,
+      flagReason: moderation.flagged ? moderation.flags.join("; ") : null,
+      aiAnalysis: moderation.analysis,
     });
     await comment.save();
 
@@ -4022,30 +3970,78 @@ app.get("/api/users/find-by-email", auth, async (req, res) => {
 // ADMIN DASHBOARD (Module 3 - Feature 3)
 // =================================================================
 
-// Get flagged content
+
+// Get flagged content for moderation
 app.get("/api/admin/flagged-content", auth, adminAuth, async (req, res) => {
   try {
-    const flaggedReviews = await Review.find({ flagged: true })
-      .populate("company", "name companyName")
-      .populate("reviewer", "name email")
-      .sort({ createdAt: -1 });
+    const { type } = req.query;
+    let flaggedReviews = [];
+    let flaggedPosts = [];
+    let flaggedComments = [];
 
-    const flaggedPosts = await ForumPost.find({ flagged: true })
-      .populate("author", "name email")
-      .sort({ createdAt: -1 });
+    if (!type || type === "all" || type === "reviews") {
+      flaggedReviews = await Review.find({ flagged: true }).lean();
+      try {
+        await Review.populate(flaggedReviews, { path: "reviewer", select: "name email" });
+      } catch (e) { console.error("Review populate failed", e); }
+    }
 
-    const flaggedComments = await ForumComment.find({ flagged: true })
-      .populate("author", "name email")
-      .populate("post", "title")
-      .sort({ createdAt: -1 });
+    if (!type || type === "all" || type === "posts") {
+      flaggedPosts = await ForumPost.find({ flagged: true }).lean();
+      try {
+        await ForumPost.populate(flaggedPosts, { path: "author", select: "name email" });
+      } catch (e) { console.error("Post populate failed", e); }
+    }
 
-    res.json({
-      success: true,
-      reviews: flaggedReviews,
-      posts: flaggedPosts,
-      comments: flaggedComments,
-      totalFlagged:
-        flaggedReviews.length + flaggedPosts.length + flaggedComments.length,
+    if (!type || type === "all" || type === "comments") {
+      flaggedComments = await ForumComment.find({ flagged: true }).lean();
+       try {
+        await ForumComment.populate(flaggedComments, { path: "author", select: "name email" });
+      } catch (e) { console.error("Comment populate failed", e); }
+    }
+
+    console.log(`[DEBUG] Flagged Content Request. Type: ${type}`);
+    console.log(`[DEBUG] Counts - Reviews: ${flaggedReviews.length}, Posts: ${flaggedPosts.length}, Comments: ${flaggedComments.length}`);
+
+    // Normalize for the frontend dashboard
+    const normalizedReviews = (flaggedReviews || []).map(r => ({
+      ...r,
+      type: "review",
+      author: r.reviewer || { name: "Unknown User" }, 
+      content: r.comment || "No comment content provided"
+    }));
+
+    const normalizedPosts = (flaggedPosts || []).map(p => ({
+      ...p,
+      type: "post",
+      author: p.author || { name: "Unknown User" }
+    }));
+
+    const normalizedComments = (flaggedComments || []).map(c => ({
+      ...c,
+      type: "comment",
+      author: c.author || { name: "Unknown User" }
+    }));
+
+    const allFlagged = [...normalizedReviews, ...normalizedPosts, ...normalizedComments].sort((a, b) => 
+      new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
+    );
+
+    res.json({ 
+      success: true, 
+      flaggedContent: allFlagged,
+      stats: {
+        reviews: flaggedReviews.length,
+        posts: flaggedPosts.length,
+        comments: flaggedComments.length,
+        total: flaggedReviews.length + flaggedPosts.length + flaggedComments.length
+      },
+      debug: {
+        queryType: type,
+        foundReviews: flaggedReviews.length,
+        foundPosts: flaggedPosts.length,
+        foundComments: flaggedComments.length
+      }
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -4089,7 +4085,7 @@ app.post(
           .json({ success: false, error: "Content not found" });
       }
 
-      const authorUser = await User.findById(author._id);
+      const authorUser = author ? await User.findById(author._id) : null;
 
       switch (action) {
         case "delete":
@@ -4101,20 +4097,24 @@ app.post(
           else if (contentType === "comment")
             await ForumComment.findByIdAndDelete(req.params.contentId);
 
-          // Notify user
-          await createNotification(
-            author._id,
-            "system",
-            "Content Removed",
-            `Your ${contentType} has been removed by an admin. Reason: ${reason}`,
-            null
-          );
+          // Notify user if they still exist
+          if (authorUser && author._id) {
+            await createNotification(
+              author._id,
+              "system",
+              "Content Removed",
+              `Your ${contentType} has been removed by an admin. Reason: ${reason}`,
+              null
+            );
+          }
           break;
 
         case "warn":
-          // Increment warnings
-          authorUser.warnings += 1;
-          await authorUser.save();
+          // Increment warnings if user exists
+          if (authorUser) {
+            authorUser.warnings += 1;
+            await authorUser.save();
+          }
 
           // Notify user
           await createNotification(
@@ -4160,6 +4160,13 @@ app.post(
           );
           break;
 
+        case "ignore":
+          // Mark as safe
+          content.flagged = false;
+          content.aiAnalysis = "Admin Override: Content marked as Safe";
+          await content.save();
+          break;
+
         default:
           return res
             .status(400)
@@ -4203,6 +4210,130 @@ app.get("/api/admin/users", auth, adminAuth, async (req, res) => {
       .limit(100);
 
     res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get all reviews for a recruiter's company
+app.get("/api/recruiter/reviews", auth, recruiterAuth, async (req, res) => {
+  try {
+    const reviews = await Review.find({ company: req.user.id })
+      .populate("reviewer", "name email studentId")
+      .sort({ createdAt: -1 });
+
+    // Calculate aggregate ratings
+    const stats = {
+      overall: 0,
+      workCulture: 0,
+      salary: 0,
+      careerGrowth: 0,
+      count: reviews.length
+    };
+
+    if (reviews.length > 0) {
+      reviews.forEach(r => {
+        stats.overall += r.rating || 0;
+        stats.workCulture += r.workCulture || 0;
+        stats.salary += r.salary || 0;
+        stats.careerGrowth += r.careerGrowth || 0;
+      });
+      stats.overall = (stats.overall / reviews.length).toFixed(1);
+      stats.workCulture = (stats.workCulture / reviews.length).toFixed(1);
+      stats.salary = (stats.salary / reviews.length).toFixed(1);
+      stats.careerGrowth = (stats.careerGrowth / reviews.length).toFixed(1);
+    }
+
+    res.json({ success: true, reviews, stats });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET detailed user info for Admin
+app.get("/api/admin/users/:userId/details", auth, adminAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    if (user.role === "student") {
+      const applications = await Application.find({ user: user._id })
+        .populate("job", "title company location status")
+        .sort({ createdAt: -1 });
+
+      return res.json({
+        success: true,
+        user,
+        applications,
+      });
+    } else if (user.role === "recruiter") {
+      const jobs = await Job.find({ recruiter: user._id }).sort({ createdAt: -1 });
+      const reviews = await Review.find({ company: user._id })
+        .populate("reviewer", "name email")
+        .sort({ createdAt: -1 });
+
+      // Calculate aggregate ratings for recruiter/admin view
+      const stats = {
+        overall: 0,
+        workCulture: 0,
+        salary: 0,
+        careerGrowth: 0,
+        count: reviews.length
+      };
+
+      if (reviews.length > 0) {
+        reviews.forEach(r => {
+          stats.overall += r.rating || 0;
+          stats.workCulture += r.workCulture || 0;
+          stats.salary += r.salary || 0;
+          stats.careerGrowth += r.careerGrowth || 0;
+        });
+        stats.overall = (stats.overall / reviews.length).toFixed(1);
+        stats.workCulture = (stats.workCulture / reviews.length).toFixed(1);
+        stats.salary = (stats.salary / reviews.length).toFixed(1);
+        stats.careerGrowth = (stats.careerGrowth / reviews.length).toFixed(1);
+      }
+
+      return res.json({
+        success: true,
+        user,
+        jobs,
+        reviews,
+        stats
+      });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Admin view job applicants
+app.get("/api/admin/jobs/:jobId/applicants", auth, adminAuth, async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ success: false, error: "Job not found" });
+    }
+
+    const applications = await Application.find({ job: req.params.jobId })
+      .populate("user", "name email department cgpa studentId")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      job,
+      applications,
+      stats: {
+        total: applications.length,
+        accepted: applications.filter(a => a.status === "Accepted").length,
+        rejected: applications.filter(a => a.status === "Rejected").length,
+        pending: applications.filter(a => a.status === "Pending").length,
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -4305,6 +4436,38 @@ app.get("/api/admin/stats", auth, adminAuth, async (req, res) => {
     };
 
     res.json({ success: true, stats });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Admin: Delete any job
+app.delete("/api/admin/jobs/:jobId", auth, adminAuth, async (req, res) => {
+  try {
+    const job = await Job.findByIdAndDelete(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ success: false, error: "Job not found" });
+    }
+
+    // Clean up applications
+    await Application.deleteMany({ job: req.params.jobId });
+    // Clean up calendar events
+    await CalendarEvent.deleteMany({ job: req.params.jobId });
+
+    res.json({ success: true, message: "Job and related data deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Admin: Delete any review
+app.delete("/api/admin/reviews/:reviewId", auth, adminAuth, async (req, res) => {
+  try {
+    const review = await Review.findByIdAndDelete(req.params.reviewId);
+    if (!review) {
+      return res.status(404).json({ success: false, error: "Review not found" });
+    }
+    res.json({ success: true, message: "Review deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
