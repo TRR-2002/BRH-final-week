@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Create a new instance of axios
 const api = axios.create({
-  baseURL: "http://localhost:1350/api",
+  baseURL: "/api",
 });
 
 // This function will allow us to set the token from anywhere in our app

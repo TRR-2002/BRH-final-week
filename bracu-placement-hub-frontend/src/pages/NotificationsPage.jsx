@@ -26,8 +26,8 @@ function NotificationsPage() {
 
       const url =
         filter === "unread"
-          ? "http://localhost:1350/api/notifications?unread=true"
-          : "http://localhost:1350/api/notifications";
+          ? "/api/notifications?unread=true"
+          : "/api/notifications";
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -51,7 +51,7 @@ function NotificationsPage() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:1350/api/notifications/${notificationId}/read`,
+        `/api/notifications/${notificationId}/read`,
         {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}` },
@@ -73,7 +73,7 @@ function NotificationsPage() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        "http://localhost:1350/api/notifications/read-all",
+        "/api/notifications/read-all",
         {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}` },

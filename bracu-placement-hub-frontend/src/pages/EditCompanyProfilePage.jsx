@@ -26,7 +26,7 @@ function EditCompanyProfilePage() {
           return;
         }
         // Fetch the user's own profile which contains company data for recruiters
-        const response = await fetch("http://localhost:1350/api/auth/profile", {
+        const response = await fetch("/api/auth/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -66,7 +66,7 @@ function EditCompanyProfilePage() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        "http://localhost:1350/api/company/profile",
+        "/api/company/profile",
         {
           method: "PUT",
           headers: {

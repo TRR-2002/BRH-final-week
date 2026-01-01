@@ -38,7 +38,7 @@ function EditJobPage() {
       }
 
       const response = await fetch(
-        `http://localhost:1350/api/recruiter/jobs/${jobId}`,
+        `/api/recruiter/jobs/${jobId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -144,7 +144,7 @@ function EditJobPage() {
       };
 
       const response = await fetch(
-        `http://localhost:1350/api/recruiter/jobs/${jobId}`,
+        `/api/recruiter/jobs/${jobId}`,
         {
           method: "PUT",
           headers: {

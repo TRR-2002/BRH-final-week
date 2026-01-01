@@ -43,7 +43,7 @@ function ForumPage() {
       });
 
       const response = await fetch(
-        `http://localhost:1350/api/forum/posts?${params.toString()}`,
+        `/api/forum/posts?${params.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

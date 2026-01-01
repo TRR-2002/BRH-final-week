@@ -36,7 +36,7 @@ function ApplicationConfirmPage() {
       // Fetch user profile
       const token = localStorage.getItem("token");
       const profileResponse = await fetch(
-        "http://localhost:1350/api/auth/profile",
+        "/api/auth/profile",
         {
           headers: {
             Authorization: `Bearer ${token}`,

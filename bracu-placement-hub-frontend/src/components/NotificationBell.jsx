@@ -20,7 +20,7 @@ function NotificationBell() {
       if (!token) return;
 
       const response = await fetch(
-        "http://localhost:1350/api/notifications?unread=true",
+        "/api/notifications?unread=true",
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -38,7 +38,7 @@ function NotificationBell() {
     try {
       const token = localStorage.getItem("token");
       await fetch(
-        `http://localhost:1350/api/notifications/${notificationId}/read`,
+        `/api/notifications/${notificationId}/read`,
         {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}` },

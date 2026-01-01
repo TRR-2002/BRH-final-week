@@ -16,7 +16,7 @@ const CalendarView = ({ token }) => {
   const fetchDeadlines = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:1350/api/calendar/deadlines', {
+      const response = await fetch('/api/calendar/deadlines', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

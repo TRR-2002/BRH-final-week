@@ -34,13 +34,13 @@ function Navbar() {
       }
       try {
         const [profileRes, notifRes, msgRes] = await Promise.all([
-          fetch("http://localhost:1350/api/auth/profile", {
+          fetch("/api/auth/profile", {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch("http://localhost:1350/api/notifications/unread-count", {
+          fetch("/api/notifications/unread-count", {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch("http://localhost:1350/api/messages/unread/count", {
+          fetch("/api/messages/unread/count", {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);

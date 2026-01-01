@@ -33,7 +33,7 @@ function ForumPostDetail() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:1350/api/forum/posts/${postId}`,
+        `/api/forum/posts/${postId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await response.json();
@@ -61,7 +61,7 @@ function ForumPostDetail() {
         // We use a ref to prevent double-incrementing in development (StrictMode)
         // or during successive data refreshes (like when liking/commenting).
         if (lastPostId.current !== postId) {
-          fetch(`http://localhost:1350/api/forum/posts/${postId}/view`, {
+          fetch(`/api/forum/posts/${postId}/view`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
           });
@@ -70,7 +70,7 @@ function ForumPostDetail() {
 
         // Step 2: Fetch the post and comment data to display.
         const response = await fetch(
-          `http://localhost:1350/api/forum/posts/${postId}`,
+          `/api/forum/posts/${postId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await response.json();
@@ -92,7 +92,7 @@ function ForumPostDetail() {
   const handleLikePost = async () => {
     try {
       const token = localStorage.getItem("token");
-      await fetch(`http://localhost:1350/api/forum/posts/${postId}/like`, {
+      await fetch(`/api/forum/posts/${postId}/like`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -106,7 +106,7 @@ function ForumPostDetail() {
     try {
       const token = localStorage.getItem("token");
       await fetch(
-        `http://localhost:1350/api/forum/comments/${commentId}/like`,
+        `/api/forum/comments/${commentId}/like`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -124,7 +124,7 @@ function ForumPostDetail() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:1350/api/forum/posts/${postId}/comments`,
+        `/api/forum/posts/${postId}/comments`,
         {
           method: "POST",
           headers: {
@@ -149,7 +149,7 @@ function ForumPostDetail() {
     if (!window.confirm("Are you sure you want to delete this post? This will also delete all comments.")) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/forum/posts/${postId}`, {
+      const response = await fetch(`/api/forum/posts/${postId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -167,7 +167,7 @@ function ForumPostDetail() {
     if (!window.confirm("Are you sure you want to delete this comment?")) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/forum/comments/${commentId}`, {
+      const response = await fetch(`/api/forum/comments/${commentId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -194,7 +194,7 @@ function ForumPostDetail() {
     e.preventDefault();
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/forum/posts/${postId}`, {
+      const response = await fetch(`/api/forum/posts/${postId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -222,7 +222,7 @@ function ForumPostDetail() {
     if (!editCommentText.trim()) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/forum/comments/${commentId}`, {
+      const response = await fetch(`/api/forum/comments/${commentId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

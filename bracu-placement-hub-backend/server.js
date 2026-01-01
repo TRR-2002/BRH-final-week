@@ -315,7 +315,10 @@ async function scheduleInterviewSlot(
 // MIDDLEWARE
 // =================================================================
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  credentials: true
+}));
 
 // Authentication middleware
 // =================================================================
@@ -5022,12 +5025,18 @@ app.get("/api/calendar/status", auth, async (req, res) => {
 });
 
 // =================================================================
-// SERVER STARTUP
+// SERVER STARTUP (Vercel Compatibility)
 // =================================================================
 
+// Export the app for Vercel (Required for Serverless Functions)
+module.exports = app;
+
 const PORT = process.env.PORT || 1350;
-app.listen(PORT, () => {
-  console.log(`
+
+// Only start the server if not running in production or on Vercel
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
 ║           BRACU PLACEMENT HUB - BACKEND SERVER                ║
 ║                    FULLY OPERATIONAL                          ║
@@ -5073,4 +5082,5 @@ app.listen(PORT, () => {
    • Configure proper CORS
    • Configure Google Calendar API credentials
 `);
-});
+  });
+}

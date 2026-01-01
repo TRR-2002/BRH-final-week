@@ -31,7 +31,7 @@ function TalentSearchPage() {
       }
 
       // Verify recruiter role
-      const profileResponse = await fetch("http://localhost:1350/api/auth/profile", {
+      const profileResponse = await fetch("/api/auth/profile", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -42,7 +42,7 @@ function TalentSearchPage() {
       }
 
       // Fetch recruiter's open jobs
-      const jobsResponse = await fetch("http://localhost:1350/api/recruiter/jobs", {
+      const jobsResponse = await fetch("/api/recruiter/jobs", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -62,7 +62,7 @@ function TalentSearchPage() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:1350/api/recruiter/search-talent", {
+      const response = await fetch("/api/recruiter/search-talent", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -106,7 +106,7 @@ function TalentSearchPage() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:1350/api/recruiter/invite/${studentId}`,
+        `/api/recruiter/invite/${studentId}`,
         {
           method: "POST",
           headers: {

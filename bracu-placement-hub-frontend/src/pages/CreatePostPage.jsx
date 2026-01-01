@@ -53,7 +53,7 @@ function CreatePostPage() {
     
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:1350/api/forum/posts", {
+      const response = await fetch("/api/forum/posts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

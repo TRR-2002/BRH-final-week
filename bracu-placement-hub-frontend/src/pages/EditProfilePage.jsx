@@ -38,7 +38,7 @@ function EditProfilePage() {
         const token = localStorage.getItem("token");
         if (!token) return navigate("/");
 
-        const response = await fetch("http://localhost:1350/api/auth/profile", {
+        const response = await fetch("/api/auth/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) throw new Error("Failed to fetch profile");
@@ -142,7 +142,7 @@ function EditProfilePage() {
       const profileData = { ...formData, workExperience, education };
 
       const response = await fetch(
-        `http://localhost:1350/api/profile/${userId}`,
+        `/api/profile/${userId}`,
         {
           method: "PUT",
           headers: {

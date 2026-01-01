@@ -56,7 +56,7 @@ const ComposeModal = ({ onClose, onConversationStart }) => {
       const cleanEmail = email.trim().toLowerCase();
 
       const response = await fetch(
-        `http://localhost:1350/api/users/find-by-email?email=${encodeURIComponent(
+        `/api/users/find-by-email?email=${encodeURIComponent(
           cleanEmail
         )}`,
         {
@@ -165,7 +165,7 @@ function MessagesPage() {
     if (!silent) setLoadingConversations(true);
     try {
       const response = await fetch(
-        "http://localhost:1350/api/messages/conversations",
+        "/api/messages/conversations",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -227,7 +227,7 @@ function MessagesPage() {
 
       try {
         const response = await fetch(
-          `http://localhost:1350/api/messages/history/${activeConversation.withUser._id}`,
+          `/api/messages/history/${activeConversation.withUser._id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -292,7 +292,7 @@ function MessagesPage() {
     setSendingMessage(true);
 
     try {
-      const response = await fetch("http://localhost:1350/api/messages/send", {
+      const response = await fetch("/api/messages/send", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

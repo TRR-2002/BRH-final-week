@@ -34,7 +34,7 @@ function CreateCompanyProfilePage() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        "http://localhost:1350/api/company/profile",
+        "/api/company/profile",
         {
           method: "PUT",
           headers: {

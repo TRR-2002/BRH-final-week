@@ -48,7 +48,7 @@ function AdminDashboard() {
         return;
       }
 
-      const response = await fetch("http://localhost:1350/api/auth/profile", {
+      const response = await fetch("/api/auth/profile", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -70,7 +70,7 @@ function AdminDashboard() {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:1350/api/admin/stats", {
+      const response = await fetch("/api/admin/stats", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -87,8 +87,8 @@ function AdminDashboard() {
       const token = localStorage.getItem("token");
       const url =
         contentType === "all"
-          ? "http://localhost:1350/api/admin/flagged-content"
-          : `http://localhost:1350/api/admin/flagged-content?type=${contentType}`;
+          ? "/api/admin/flagged-content"
+          : `/api/admin/flagged-content?type=${contentType}`;
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -106,8 +106,8 @@ function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       const url = userSearch
-        ? `http://localhost:1350/api/admin/users?search=${userSearch}`
-        : "http://localhost:1350/api/admin/users";
+        ? `/api/admin/users?search=${userSearch}`
+        : "/api/admin/users";
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -126,7 +126,7 @@ function AdminDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/admin/content/${contentId}/action`, {
+      const response = await fetch(`/api/admin/content/${contentId}/action`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -148,7 +148,7 @@ function AdminDashboard() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/admin/users/${userId}/details`, {
+      const response = await fetch(`/api/admin/users/${userId}/details`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -166,7 +166,7 @@ function AdminDashboard() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/admin/jobs/${jobId}/applicants`, {
+      const response = await fetch(`/api/admin/jobs/${jobId}/applicants`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -186,7 +186,7 @@ function AdminDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/admin/users/${userId}/suspend`, {
+      const response = await fetch(`/api/admin/users/${userId}/suspend`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ days: parseInt(daysInput) }),
@@ -205,7 +205,7 @@ function AdminDashboard() {
     if (!window.confirm("Are you sure you want to PERMANENTLY DELETE this user?")) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -222,7 +222,7 @@ function AdminDashboard() {
     if (!window.confirm("Are you sure you want to delete this job?")) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/admin/jobs/${jobId}`, {
+      const response = await fetch(`/api/admin/jobs/${jobId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -239,7 +239,7 @@ function AdminDashboard() {
     if (!window.confirm("Are you sure you want to delete this review?")) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/admin/reviews/${reviewId}`, {
+      const response = await fetch(`/api/admin/reviews/${reviewId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

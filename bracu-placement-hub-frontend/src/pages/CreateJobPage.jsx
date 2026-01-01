@@ -31,7 +31,7 @@ function CreateJobPage() {
       return;
     }
 
-    fetch("http://localhost:1350/api/auth/profile", {
+    fetch("/api/auth/profile", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -124,7 +124,7 @@ function CreateJobPage() {
         applicationDeadline: formData.applicationDeadline || undefined,
       };
 
-      const response = await fetch("http://localhost:1350/api/recruiter/jobs", {
+      const response = await fetch("/api/recruiter/jobs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

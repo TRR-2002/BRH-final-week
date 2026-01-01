@@ -22,7 +22,7 @@ function InvitationsPage() {
         return;
       }
 
-      const response = await fetch("http://localhost:1350/api/student/invitations", {
+      const response = await fetch("/api/student/invitations", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -49,7 +49,7 @@ function InvitationsPage() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:1350/api/invitations/${invitationId}/respond`,
+        `/api/invitations/${invitationId}/respond`,
         {
           method: "POST",
           headers: {

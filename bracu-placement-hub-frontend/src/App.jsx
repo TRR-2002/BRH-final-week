@@ -35,7 +35,7 @@ function App() {
       localStorage.setItem("userId", decodedUser.userId);
 
       // Call the profile status endpoint to determine routing
-      const response = await fetch("http://localhost:1350/api/profile/status", {
+      const response = await fetch("/api/profile/status", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

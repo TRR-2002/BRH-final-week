@@ -42,13 +42,13 @@ function StudentDashboard() {
         }
 
         const responses = await Promise.all([
-          fetch("http://localhost:1350/api/auth/profile", {
+          fetch("/api/auth/profile", {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch("http://localhost:1350/api/dashboard/overview", {
+          fetch("/api/dashboard/overview", {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch("http://localhost:1350/api/forum/my-posts", {
+          fetch("/api/forum/my-posts", {
             headers: { Authorization: `Bearer ${token}` },
           }),
           getConversations(), // Use the API helper
@@ -87,7 +87,7 @@ function StudentDashboard() {
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
-        "http://localhost:1350/api/applications/my-applications",
+        "/api/applications/my-applications",
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
@@ -107,7 +107,7 @@ function StudentDashboard() {
     setTabLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:1350/api/notifications", {
+      const res = await fetch("/api/notifications", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -124,7 +124,7 @@ function StudentDashboard() {
   const handleMarkAllAsRead = async () => {
     try {
       const token = localStorage.getItem("token");
-      await fetch("http://localhost:1350/api/notifications/read-all", {
+      await fetch("/api/notifications/read-all", {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -147,7 +147,7 @@ function StudentDashboard() {
     setTabLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:1350/api/student/invitations", {
+      const res = await fetch("/api/student/invitations", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

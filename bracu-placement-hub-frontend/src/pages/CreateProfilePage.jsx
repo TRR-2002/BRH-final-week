@@ -42,7 +42,7 @@ function CreateProfilePage() {
         }
 
         const response = await fetch(
-          "http://localhost:1350/api/profile/status",
+          "/api/profile/status",
           {
             method: "GET",
             headers: {
@@ -210,7 +210,7 @@ function CreateProfilePage() {
       };
 
       const response = await fetch(
-        `http://localhost:1350/api/profile/${userId}`,
+        `/api/profile/${userId}`,
         {
           method: "PUT",
           headers: {

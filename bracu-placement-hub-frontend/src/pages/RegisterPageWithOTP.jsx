@@ -76,7 +76,7 @@ function RegisterPageWithOTP() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("http://localhost:1350/api/auth/request-otp", {
+      const response = await fetch("/api/auth/request-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -113,7 +113,7 @@ function RegisterPageWithOTP() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("http://localhost:1350/api/auth/register", {
+      const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

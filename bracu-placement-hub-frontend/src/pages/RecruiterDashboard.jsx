@@ -23,7 +23,7 @@ function RecruiterDashboard() {
 
       // Fetch user profile to verify role
       const profileResponse = await fetch(
-        "http://localhost:1350/api/auth/profile",
+        "/api/auth/profile",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -44,7 +44,7 @@ function RecruiterDashboard() {
       }
       // -- ADD THIS NEW BLOCK --
       const statusResponse = await fetch(
-        "http://localhost:1350/api/profile/status",
+        "/api/profile/status",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -74,7 +74,7 @@ function RecruiterDashboard() {
       setLoading(true);
       const token = localStorage.getItem("token");
 
-      const response = await fetch("http://localhost:1350/api/recruiter/jobs", {
+      const response = await fetch("/api/recruiter/jobs", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -116,7 +116,7 @@ function RecruiterDashboard() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:1350/api/recruiter/jobs/${jobId}`,
+        `/api/recruiter/jobs/${jobId}`,
         {
           method: "DELETE",
           headers: {
@@ -141,7 +141,7 @@ function RecruiterDashboard() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:1350/api/recruiter/jobs/${jobId}/mark-filled`,
+        `/api/recruiter/jobs/${jobId}/mark-filled`,
         {
           method: "PATCH",
           headers: {

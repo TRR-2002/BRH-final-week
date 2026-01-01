@@ -21,7 +21,7 @@ function ForgotPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("http://localhost:1350/api/auth/forgot-password", {
+      const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -69,7 +69,7 @@ function ForgotPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("http://localhost:1350/api/auth/reset-password", {
+      const response = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp, newPassword }),

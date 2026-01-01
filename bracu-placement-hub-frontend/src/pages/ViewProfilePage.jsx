@@ -26,10 +26,10 @@ function ViewProfilePage() {
         setTargetId(id);
 
         const [targetRes, currentRes] = await Promise.all([
-          fetch(`http://localhost:1350/api/auth/profile-by-id/${id}`, {
+          fetch(`/api/auth/profile-by-id/${id}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch("http://localhost:1350/api/auth/profile", {
+          fetch("/api/auth/profile", {
             headers: { Authorization: `Bearer ${token}` },
           })
         ]);

@@ -54,13 +54,13 @@ function CompanyProfilePage() {
       }
 
       const [companyRes, reviewsRes, userRes] = await Promise.all([
-        fetch(`http://localhost:1350/api/company/${companyId}`, {
+        fetch(`/api/company/${companyId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`http://localhost:1350/api/reviews/company/${companyId}`, {
+        fetch(`/api/reviews/company/${companyId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`http://localhost:1350/api/auth/profile`, {
+        fetch(`/api/auth/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -94,8 +94,8 @@ function CompanyProfilePage() {
     try {
       const token = localStorage.getItem("token");
       const url = editingReviewId
-        ? `http://localhost:1350/api/reviews/${editingReviewId}`
-        : "http://localhost:1350/api/reviews/submit";
+        ? `/api/reviews/${editingReviewId}`
+        : "/api/reviews/submit";
       const method = editingReviewId ? "PUT" : "POST";
       const body = editingReviewId ? reviewData : { companyId, ...reviewData };
 
@@ -148,7 +148,7 @@ function CompanyProfilePage() {
     if (!window.confirm("Are you sure you want to delete this review?")) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:1350/api/reviews/${reviewId}`, {
+      const response = await fetch(`/api/reviews/${reviewId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
