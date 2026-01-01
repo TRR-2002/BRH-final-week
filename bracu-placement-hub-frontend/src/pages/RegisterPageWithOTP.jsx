@@ -47,7 +47,7 @@ function RegisterPageWithOTP() {
       }
     } else {
       if (formData.email.endsWith("@g.bracu.ac.bd")) {
-        setError("Recruiters and admins must use a non-university email address");
+        setError("Recruiters must use a non-university email address");
         return false;
       }
     }
@@ -208,8 +208,8 @@ function RegisterPageWithOTP() {
               {/* Role Selection */}
               <div className="mb-6">
                 <label className="block text-gray-700 font-bold mb-2">I am a *</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {['student', 'recruiter', 'admin'].map((role) => (
+                <div className="grid grid-cols-2 gap-3">
+                  {['student', 'recruiter'].map((role) => (
                     <button
                       key={role}
                       type="button"
@@ -227,7 +227,7 @@ function RegisterPageWithOTP() {
                 <p className="text-xs text-gray-500 mt-2">
                   {formData.role === "student"
                     ? "Students must use @g.bracu.ac.bd email"
-                    : "Recruiters and admins use regular email addresses"}
+                    : "Recruiters use regular email addresses"}
                 </p>
               </div>
 
